@@ -9,6 +9,16 @@
 #include <utility>
 #include <stdexcept>
 
+// Based on
+// * https://stackoverflow.com/a/54493136
+//   https://godbolt.org/z/FxPDgU
+// * http://alexpolt.github.io/type-loophole.html
+//   https://github.com/alexpolt/luple/blob/master/type-loophole.h
+//   by Alexandr Poltavsky, http://alexpolt.github.io
+// * https://www.youtube.com/watch?v=UlNUNxLtBI0
+//   Better C++14 reflections - Antony Polukhin - Meeting C++ 2018
+// * Also special thanks to lapinozz
+
 namespace Gx
 {
     namespace priv
