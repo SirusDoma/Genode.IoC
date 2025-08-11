@@ -132,7 +132,7 @@ assert(lifeSystem == nullptr, "Life System is not registered within the context!
 ## Lifetime ##
 
 Each `Provide<T>` method overload has an optional `Scope` parameter which allows you to choose between `Scope::Local` and `Scope::Singleton` to control the lifetime of the object.
-By default, `Provide<T>` use `Scope::Local` which makes each call to `Require<T>` creates a new instance.
+By default, `Provide<T>` use `Scope::Local`.
 
 A singleton is created by specifying `Scope::Singleton` during registration:
 
@@ -163,7 +163,7 @@ assert(&instance1 == &instance2);
 
 {
     // Create a new scope
-    auto scope = context.CreateScope();
+    auto scope = context.Capture();
     auto& instance3 = scope.Require<FooBar>();
     auto& instance4 = scope.Require<FooBar>();
     
