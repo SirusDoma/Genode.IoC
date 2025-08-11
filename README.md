@@ -33,7 +33,8 @@ However, the type registration can be called explicitly by calling `Provide` met
 Consider the following structures:
 ```c++
 struct InputSystem {};
-struct MovementSystem {
+struct MovementSystem
+{
     MovementSystem(InputSystem& input) : m_input(&input) {}
     InputSystem* m_input;
 };
@@ -65,7 +66,7 @@ context.Provide<InputSystem>();
 ## Binding interface ##
 
 If your object constructor require an interface type, you must bind the interface before retrieving the type from the container.  
-Use `As<T>()` to bind your interface with concrete type when calling `Provide<T>()`.  
+Use `Provide<T, U>` or `As<T>()` to bind your interface with concrete type when binding an interface, abstract or type with non-public constructors.  
 
 Consider the following structures:
 ```c++
@@ -76,7 +77,8 @@ protected:
 };
 
 struct InputSystem : IInputSystem {};
-struct MovementSystem {
+struct MovementSystem
+{
     MovementSystem(InputSystem& input) : m_input(&input) {}
     InputSystem* m_input;
 };
@@ -84,7 +86,11 @@ struct MovementSystem {
 The following code demonstrate how to register interface type above:
 ```c++
 auto context = Gx::Context();
+context.Provide<IInputSystem, InputSystem>();
+// Or:
 context.Provide<IInputSystem>(context.As<InputSystem>());
+
+// Then
 context.Provide<MovementSystem>(); // Optional
 ```
 > [!Important]
