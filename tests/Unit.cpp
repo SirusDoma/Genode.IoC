@@ -385,6 +385,42 @@ void TestInstantiate()
 }
 REGISTER_TEST(TestInstantiate);
 
+void TestRequireThrowsOnUnresolvable()
+{
+    auto context = Gx::Context();
+
+    bool thrown = false;
+    try
+    {
+        context.Require<IRenderer>();
+    }
+    catch (const std::runtime_error&)
+    {
+        thrown = true;
+    }
+
+    ASSERT(thrown);
+}
+REGISTER_TEST(TestRequireThrowsOnUnresolvable);
+
+void TestInstantiateThrowsOnUnresolvable()
+{
+    auto context = Gx::Context();
+
+    bool thrown = false;
+    try
+    {
+        context.Instantiate<IRenderer>();
+    }
+    catch (const std::runtime_error&)
+    {
+        thrown = true;
+    }
+
+    ASSERT(thrown);
+}
+REGISTER_TEST(TestInstantiateThrowsOnUnresolvable);
+
 void TestComplexDependencyTree()
 {
     auto context = Gx::Context();
