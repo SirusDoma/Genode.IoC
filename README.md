@@ -1,21 +1,20 @@
 # Genode.IoC #
-Genode.IoC is a non-intrusive single file header IoC Container for C++ 17.  
-It is one of my in-house game engine's subset modules, **Genode** (**G**ame **E**ngi**N**e **O**n **DE**mand).  
+Genode.IoC is a non-intrusive, single-header IoC container for C++17.  
+It is a subset module of **Genode** (**G**ame **E**ngi**N**e **O**n **DE**mand), my in-house game engine.
 
-While several great IoC solutions are available that are much more powerful and flexible, Genode.IoC aims to enable lightweight/small-footprint projects with a simple implementation.
+While more powerful and flexible IoC solutions exist, Genode.IoC is designed for lightweight projects that need a simple, small-footprint, yet still powerful dependency injection container.
 
 ## Features ##
 - Small, simple, and fast IoC Container.
 - Single header file.
-- Non-intrusive: No interface or contracts neeeded.
+- Non-intrusive: no base classes, no interfaces or contracts required.
 - Minimum configuration.
 - Autowire class dependencies with the constructor.
 - Simple and easy lifetime management.
 
 ## Integration ##
 
-Genode.IoC is distributed as a single header file, which can be included and compiled in other projects.  
-Add [`Context.hpp`](./include/Genode/Context.hpp) into your project files and include the header in the source files you wish to interact with IoC Container:
+Copy [`Context.hpp`](./include/Genode/Context.hpp) into your project and include it:
 
 ```cpp
 #include <Genode/Context.hpp>
@@ -23,157 +22,213 @@ Add [`Context.hpp`](./include/Genode/Context.hpp) into your project files and in
 
 ## Usage ##
 
-## Registration ##
+### Registration ###
 
-The container does not require registration or configuration for concrete classes by default. 
-It will automatically create the object, including resolving the dependencies for you.  
+The container does not require explicit registration for concrete classes with constructible dependencies (i.e, not an interface or abstract class).
+It will automatically create the object and resolve its dependencies when first requested.
 
-However, the type registration can be called explicitly by calling `Provide` method.  
+However, you can register types explicitly using the `Provide` method:
 
-Consider the following structures:
-```c++
+```cpp
 struct InputSystem {};
-struct MovementSystem
-{
+struct MovementSystem {
     MovementSystem(InputSystem& input) : m_input(&input) {}
     InputSystem* m_input;
 };
 ```
 
-The following code demonstrates how to register types of the above structures:
-```c++
+```cpp
 auto context = Gx::Context();
 context.Provide<MovementSystem>();
 context.Provide<InputSystem>();
 ```
 
 > [!Tip]
-> You can register your type out-of-order.  
-> 
-> The object will be lazily created when you call `Require<T>()`, and the container will resolve its dependency auto-magically.
+> Types can be registered in any order.
+>
+> Objects are lazily created on the first call to `Require<T>()`, and the container resolves dependencies automatically.
 
 > [!Important]
-> The registrant type needs at least one public constructor.
-> The container will use the constructor with the least number of parameters.
-> 
-> If the public constructor with the least number of parameters has overload, the container will fail to resolve and a runtime error will be thrown when retrieving the object by reference. 
-> You must bind the type with [builder](#binding-with-builder) to register the type before retrieving such type.
-> 
-> Additionally, the type must never accept smart pointers in the constructor as the container handles the lifetime of dependencies.
-> 
-> For `private`/`protected` constructors, see below.
+> The type must have at least one public constructor.
+> The container selects the constructor with the fewest parameters.
+>
+> If the shortest constructor has an ambiguous overload, the container will fail to resolve it and throw a runtime error.
+> Use a [builder](#binding-with-builder) to register such types.
+>
+> Constructor parameters must not be not smart pointers, as the container manages dependency lifetimes internally.
+>
+> For types with only `private`/`protected` constructors, use a [binding](#binding-interface).
 
-## Binding interface ##
+### Binding interface ###
 
-If your object constructor require an interface type, you must bind the interface before retrieving the type from the container.  
-Use `Provide<T, U>` or `As<T>()` to bind your interface with concrete type when binding an interface, abstract or type with non-public constructors.  
+If a type depends on an interface, you must bind the interface to a concrete type before resolving it.
+Use `Provide<TInterface, TConcrete>()` to register the binding:
 
-Consider the following structures:
-```c++
+```cpp
 class IInputSystem
 {
+public:
+    virtual ~IInputSystem() = default;
+
 protected:
-    IInputSystem();
+    IInputSystem() = default;
 };
 
 struct InputSystem : IInputSystem {};
-struct MovementSystem
-{
-    MovementSystem(InputSystem& input) : m_input(&input) {}
-    InputSystem* m_input;
+struct MovementSystem {
+    MovementSystem(IInputSystem& input) : m_input(&input) {}
+    IInputSystem* m_input;
 };
 ```
-The following code demonstrate how to register interface type above:
-```c++
+
+```cpp
 auto context = Gx::Context();
 context.Provide<IInputSystem, InputSystem>();
-// Or:
-context.Provide<IInputSystem>(context.As<InputSystem>());
-
-// Then
-context.Provide<MovementSystem>(); // Optional
+context.Provide<MovementSystem>(); // Optional: auto-wired on Require
 ```
+
 > [!Important]
-> A runtime error will be thrown if you try to resolve a type that depends on an unregistered interface type.  
-> You also can't bind interface type with default `Provide<T>`; otherwise, it will be a compile-time error.
+> A runtime error is thrown if you resolve a type that depends on an unregistered interface.
+> Abstract or interface types cannot be registered with the plain `Provide<T>()` overload; this will produce a compile-time error.
 
-## Binding with builder ##
+### Binding with builder ###
 
-You can specify how the container should create the object using the builder overload.
+You can provide a custom factory to control how an object is created.
+The builder receives the container as a parameter and must return a `std::unique_ptr<T>`:
 
-```c++
+```cpp
 auto context = Gx::Context();
 context.Provide<IInputSystem>([] (auto& ctx)
 {
-    return std::make_unique<InputSystem>( // return as a std::unique_ptr
-        ctx.Require<KeyboardSystem>(), 
+    return std::make_unique<InputSystem>(
+        ctx.Require<KeyboardSystem>(),
         ctx.Require<MouseSystem>()
     );
 });
 ```
 
-## Retrieving object ##
+### Retrieving objects ###
 
-Use `Require<T>` to resolve the object. The method will try to call the `Provide<T>` method with the type that is not registered within the container.
+Use `Require<T>()` to resolve an object.
+If the type is not registered, the container will automatically register and create it:
 
-```c++
+```cpp
 auto context = Gx::Context();
 
-// Create or retrieve MovementSystem from the container
-// If the type is not registered, the container will automatically register the type for you.
+// Retrieve (or auto-create) a MovementSystem
 auto& movementSystem = context.Require<MovementSystem>();
 
-// Use the pointer overload if you don't want the container to register the type automatically.
-// If the type is not registered, it will return `nullptr` instead.
-auto lifeSystem = context.Require<LifeSystem*>();
-assert(lifeSystem == nullptr, "Life System is not registered within the context!");
+// Use the pointer overload to query without auto-registration.
+// Returns nullptr if the type is not registered.
+auto* lifeSystem = context.Require<LifeSystem*>();
 ```
 
-## Lifetime ##
+### Creating new instances ###
 
-Each `Provide<T>` method overload has an optional `Scope` parameter which allows you to choose between `Scope::Local` and `Scope::Singleton` to control the lifetime of the object.
-By default, `Provide<T>` use `Scope::Local`.
+Use `Instantiate<T>()` to always get a fresh instance as a `std::unique_ptr<T>`, regardless of whether the type is registered as a singleton or local:
 
-A singleton is created by specifying `Scope::Singleton` during registration:
-
-```c++
+```cpp
 auto context = Gx::Context();
-context.Provide<SharedService>(Scope::Singleton);
+context.Provide<InputSystem>(Gx::Scope::Singleton);
 
-auto& instance1 = context.Require<SharedService>();
-auto& instance2 = context.Require<SharedService>();
-assert(&instance1 == &instance2);
-
+auto instance = context.Instantiate<InputSystem>(); // Always a new instance
 ```
 
-Scopes allow finer-grained lifetime control, where all types registered as local context are unique within a given scope. 
-This allows singleton-like behavior within a scope but multiple object instances can be created across scopes.  
+### Lifetime ###
 
-Scopes are created by calling `CreateScope()` on a context instance:
+Each `Provide` overload accepts an optional `Gx::Scope` parameter to control object lifetime:
 
-```c++
+- **`Scope::Local`** (default) — each scope gets its own instance.
+- **`Scope::Singleton`** — a single shared instance across all scopes.
+
+A singleton is created by specifying `Gx::Scope::Singleton` during registration:
+
+```cpp
 auto context = Gx::Context();
-context.Provide<FooBar>(Scope::Local); // Specifying `Scope::Local` is optional
+context.Provide<SharedService>(Gx::Scope::Singleton);
 
-auto& instance1 = context.Require<FooBar>();
-auto& instance2 = context.Require<FooBar>();
+auto& a = context.Require<SharedService>();
+auto& b = context.Require<SharedService>();
+assert(&a == &b); // Same instance
+```
 
-// Container is itself a scope
-assert(&instance1 == &instance2);
+Scopes provide finer-grained lifetime control.
+Local types get a unique instance per scope, while singletons are shared across all scopes:
+
+```cpp
+auto context = Gx::Context();
+context.Provide<FooBar>(); // Scope::Local by default
+
+auto& a = context.Require<FooBar>();
+auto& b = context.Require<FooBar>();
+assert(&a == &b); // Same instance within the same scope
 
 {
-    // Create a new scope
-    auto scope = context.Capture();
-    auto& instance3 = scope.Require<FooBar>();
-    auto& instance4 = scope.Require<FooBar>();
-    
-    // Instances should be equal inside a scope
-    assert(&instance3 == &instance4);
-    
-    // Instances should not be equal across scopes
-    assert(&instance1 != &instance3);
+    auto scope = context.CreateScope();
+    auto& c = scope.Require<FooBar>();
+    auto& d = scope.Require<FooBar>();
+
+    assert(&c == &d);  // Same within child scope
+    assert(&a != &c);  // Different across scopes
 }
 ```
+
+### Capture ###
+
+Use `Capture()` to create a standalone snapshot of a context.
+The captured context is independent, and changes to the original context after capture have no effect:
+
+```cpp
+auto context = Gx::Context();
+context.Provide<InputSystem>(Gx::Scope::Singleton);
+
+auto& original = context.Require<InputSystem>();
+auto captured = context.Capture();
+
+auto& fromCaptured = captured.Require<InputSystem>();
+assert(&original == &fromCaptured); // Singleton instance is shared
+
+// New registrations on the original are not visible in the captured context
+context.Provide<PhysicsSystem>();
+auto* ptr = captured.Require<PhysicsSystem*>();
+assert(ptr == nullptr);
+```
+
+## Building and testing ##
+
+Genode.IoC uses CMake to build and run the test suite:
+
+```sh
+cmake -B build
+cmake --build build --config Release
+ctest --test-dir build --output-on-failure -C Release
+```
+
+> [!Tip]
+> On single-config generators (GCC, Clang), the `-C Release` flag can be omitted.
+
+To run the benchmarks:
+
+```sh
+cmake -B build
+cmake --build build --config Release --target benchmarks
+./build/Release/benchmarks        # Plain output
+./build/Release/benchmarks --md   # Markdown table
+```
+
+## Benchmarks ##
+
+> [!Note]
+> These benchmarks use a simple `std::chrono`-based harness without optimizer fences or statistical analysis.
+> Results may vary due to CPU throttling, OS scheduling, and compiler optimizations.
+>
+> Take them with grain of salt. It is to be treated as rough ballpark figures for relative comparison, not precise measurements.
+
+The following benchmarks run using Github Action runners.
+
+<!-- BENCHMARK_START -->
+*Benchmarks are updated automatically on each push to main via CI.*
+<!-- BENCHMARK_END -->
 
 ## License ##
 This is an open-sourced library licensed under the [MIT license](LICENSE).

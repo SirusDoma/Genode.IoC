@@ -1,0 +1,199 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: ['**']
+  workflow_dispatch:
+
+jobs:
+  test:
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            compiler: g++
+          - os: ubuntu-latest
+            compiler: clang++
+          - os: windows-latest
+            compiler: cl
+
+    runs-on: ${{ matrix.os }}
+    name: test / ${{ matrix.compiler }} (${{ matrix.os }})
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_CXX_STANDARD=17 -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
+        if: matrix.compiler != 'cl'
+
+      - name: Configure (MSVC)
+        run: cmake -B build -DCMAKE_CXX_STANDARD=17
+        if: matrix.compiler == 'cl'
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Test
+        run: ctest --test-dir build --output-on-failure -C Release
+
+  benchmark:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            compiler: cl
+            label: MSVC
+          - os: ubuntu-latest
+            compiler: g++
+            label: GCC
+          - os: macos-latest
+            compiler: clang++
+            label: Clang
+
+    runs-on: ${{ matrix.os }}
+    name: benchmark / ${{ matrix.label }}
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure
+        run: cmake -B build -DCMAKE_CXX_STANDARD=17 -DCMAKE_CXX_COMPILER=${{ matrix.compiler }}
+        if: matrix.compiler != 'cl'
+
+      - name: Configure (MSVC)
+        run: cmake -B build -DCMAKE_CXX_STANDARD=17
+        if: matrix.compiler == 'cl'
+
+      - name: Build
+        run: cmake --build build --config Release --target benchmarks
+
+      - name: Collect system info
+        shell: bash
+        run: |
+          mkdir -p artifacts
+          {
+            echo "runner: ${{ matrix.os }}"
+
+            if [[ "$OSTYPE" == "msys"* ]] || [[ "$OSTYPE" == "cygwin"* ]] || [[ -n "$OS" && "$OS" == "Windows_NT" ]]; then
+              cpu=$(powershell -Command "(Get-CimInstance Win32_Processor).Name" 2>/dev/null | tr -d '\r' || echo "unknown")
+              cores=$(powershell -Command "(Get-CimInstance Win32_Processor).NumberOfCores" 2>/dev/null | tr -d '\r' || echo "unknown")
+              threads=$(powershell -Command "(Get-CimInstance Win32_Processor).NumberOfLogicalProcessors" 2>/dev/null | tr -d '\r' || echo "unknown")
+              mem_bytes=$(powershell -Command "(Get-CimInstance Win32_ComputerSystem).TotalPhysicalMemory" 2>/dev/null | tr -d '\r' || echo "0")
+              mem_gb=$(( mem_bytes / 1073741824 ))
+            elif [[ "$OSTYPE" == "darwin"* ]]; then
+              cpu=$(sysctl -n machdep.cpu.brand_string 2>/dev/null || echo "unknown")
+              cores=$(sysctl -n hw.physicalcpu 2>/dev/null || echo "unknown")
+              threads=$(sysctl -n hw.logicalcpu 2>/dev/null || echo "unknown")
+              mem_bytes=$(sysctl -n hw.memsize 2>/dev/null || echo "0")
+              mem_gb=$(( mem_bytes / 1073741824 ))
+            else
+              cpu=$(lscpu 2>/dev/null | grep 'Model name' | sed 's/Model name:[[:space:]]*//' || echo "unknown")
+              cores=$(nproc --all 2>/dev/null || echo "unknown")
+              threads=$cores
+              mem_kb=$(grep MemTotal /proc/meminfo 2>/dev/null | awk '{print $2}' || echo "0")
+              mem_gb=$(( mem_kb / 1048576 ))
+            fi
+
+            echo "cpu: $cpu"
+            echo "cores: $cores"
+            echo "threads: $threads"
+            echo "memory: ${mem_gb} GB"
+          } > artifacts/sysinfo.txt
+
+      - name: Run benchmarks (MSVC)
+        if: matrix.compiler == 'cl'
+        run: ./build/Release/benchmarks --md > artifacts/benchmark.md
+        shell: bash
+
+      - name: Run benchmarks (Unix)
+        if: matrix.compiler != 'cl'
+        run: ./build/benchmarks --md > artifacts/benchmark.md
+        shell: bash
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-${{ matrix.label }}
+          path: artifacts/
+
+  update-readme:
+    needs: benchmark
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master'
+    runs-on: ubuntu-latest
+    name: update README benchmarks
+
+    permissions:
+      contents: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download MSVC results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-MSVC
+          path: artifacts/MSVC
+
+      - name: Download GCC results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-GCC
+          path: artifacts/GCC
+
+      - name: Download Clang results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-Clang
+          path: artifacts/Clang
+
+      - name: Update README
+        run: |
+          COMMIT_SHA="${{ github.sha }}"
+          COMMIT_SHORT="${COMMIT_SHA:0:7}"
+
+          emit_section() {
+            local label="$1"
+            local dir="$2"
+
+            local runner cpu cores threads memory
+            runner=$(grep '^runner:' "$dir/sysinfo.txt" | cut -d' ' -f2-)
+            cpu=$(grep '^cpu:' "$dir/sysinfo.txt" | cut -d' ' -f2-)
+            cores=$(grep '^cores:' "$dir/sysinfo.txt" | cut -d' ' -f2-)
+            threads=$(grep '^threads:' "$dir/sysinfo.txt" | cut -d' ' -f2-)
+            memory=$(grep '^memory:' "$dir/sysinfo.txt" | cut -d' ' -f2-)
+
+            echo "**${label}** (\`${runner}\`)"
+            echo ""
+            echo "> CPU: ${cpu} (${cores} cores, ${threads} threads) | Memory: ${memory}"
+            echo ""
+            cat "$dir/benchmark.md"
+            echo ""
+          }
+
+          {
+            emit_section "MSVC" "artifacts/MSVC"
+            emit_section "GCC" "artifacts/GCC"
+            emit_section "Clang" "artifacts/Clang"
+            echo "*Commit: [\`${COMMIT_SHORT}\`](https://github.com/${{ github.repository }}/commit/${COMMIT_SHA})*"
+          } > combined.md
+
+          python3 -c "
+          import re
+          readme = open('README.md').read()
+          content = open('combined.md').read()
+          pattern = r'(<!-- BENCHMARK_START -->).*?(<!-- BENCHMARK_END -->)'
+          replacement = r'\1\n' + content + r'\n\2'
+          updated = re.sub(pattern, replacement, readme, flags=re.DOTALL)
+          open('README.md', 'w').write(updated)
+          "
+
+      - name: Commit changes
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add README.md
+          git diff --cached --quiet || git commit -m "Update benchmark results"
+          git push
