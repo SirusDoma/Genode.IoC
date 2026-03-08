@@ -27,14 +27,22 @@ namespace Gx
         struct AnyType
         {
             template <typename T, typename = std::enable_if_t<
+                !std::is_pointer_v<T> &&
                 !std::is_same_v<std::decay_t<T>, std::decay_t<Exclude>> &&
                 !std::is_same_v<std::decay_t<T>, Context>>>
             operator T& () const noexcept;
 
             template <typename T, typename = std::enable_if_t<
+                !std::is_pointer_v<T> &&
                 !std::is_same_v<std::decay_t<T>, std::decay_t<Exclude>> &&
                 !std::is_same_v<std::decay_t<T>, Context>>>
             operator T&& () const noexcept;
+
+            template <typename T, typename = std::enable_if_t<
+                std::is_pointer_v<T> &&
+                !std::is_same_v<std::decay_t<std::remove_pointer_t<T>>, std::decay_t<Exclude>> &&
+                !std::is_same_v<std::decay_t<std::remove_pointer_t<T>>, Context>>, typename = void>
+            operator T () const noexcept;
         };
 
         template <typename T>
@@ -73,14 +81,22 @@ namespace Gx
             Context& Ctx;
 
             template <typename T, typename = std::enable_if_t<
+                !std::is_pointer_v<T> &&
                 !std::is_same_v<std::decay_t<T>, std::decay_t<Owner>> &&
                 !std::is_same_v<std::decay_t<T>, Context>>>
             operator T& () const;
 
             template <typename T, typename = std::enable_if_t<
+                !std::is_pointer_v<T> &&
                 !std::is_same_v<std::decay_t<T>, std::decay_t<Owner>> &&
                 !std::is_same_v<std::decay_t<T>, Context>>>
             operator T&& () const;
+
+            template <typename T, typename = std::enable_if_t<
+                std::is_pointer_v<T> &&
+                !std::is_same_v<std::decay_t<std::remove_pointer_t<T>>, std::decay_t<Owner>> &&
+                !std::is_same_v<std::decay_t<std::remove_pointer_t<T>>, Context>>, typename = void>
+            operator T () const;
         };
 
     }
@@ -342,6 +358,13 @@ namespace Gx
         Resolver<Owner>::operator T&& () const
         {
             return std::move(Ctx.Require<T>());
+        }
+
+        template <typename Owner>
+        template <typename T, typename, typename>
+        Resolver<Owner>::operator T () const
+        {
+            return Ctx.Require<T>();
         }
     }
 

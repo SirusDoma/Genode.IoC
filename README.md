@@ -24,10 +24,10 @@ Copy [`Context.hpp`](./include/Genode/Context.hpp) into your project and include
 
 ### Registration ###
 
-The container does not require explicit registration for concrete classes with constructible dependencies (i.e, not an interface or abstract class).
+The container does not require explicit registration for resolviong reference of concrete classes with constructible dependencies (i.e, not an interface or abstract classes).
 It will automatically create the object and resolve its dependencies when first requested.
 
-However, you can register types explicitly using the `Provide` method:
+However, you may have to register types explicitly using the `Provide` method when resolving as pointer type:
 
 ```cpp
 struct InputSystem {};
@@ -120,7 +120,7 @@ auto& movementSystem = context.Require<MovementSystem>();
 
 // Use the pointer overload to query without auto-registration.
 // Returns nullptr if the type is not registered.
-auto* lifeSystem = context.Require<LifeSystem*>();
+auto* lifeSystem = context.Require<LifeSystem*>(); // nullptr if not registered
 ```
 
 ### Creating new instances ###

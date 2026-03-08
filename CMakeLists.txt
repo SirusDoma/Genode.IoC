@@ -26,6 +26,7 @@ set(TEST_NAMES
     TestCaptureFromScope
     TestRequireAutoRegistersInCurrentContext
     TestInstantiate
+    TestComplexDependencyTree
 )
 
 foreach(name IN LISTS TEST_NAMES)
