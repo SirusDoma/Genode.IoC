@@ -121,7 +121,7 @@ jobs:
 
   update-readme:
     needs: benchmark
-    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/master'
+    if: (github.event_name == 'push' || github.event_name == 'workflow_dispatch') && github.ref == 'refs/heads/main'
     runs-on: ubuntu-latest
     name: update README benchmarks
 
