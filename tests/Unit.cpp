@@ -59,6 +59,90 @@ struct AudioSystem
     int Channels;
 };
 
+// Complex dependency tree (5 levels, 2-5 deps per node)
+namespace Complex
+{
+    struct Config    { int version = 1; };
+    struct Logger    { int level = 0; };
+    struct Timer     { float delta = 0.016f; };
+    struct Allocator { int poolSize = 1024; };
+    struct RNG       { int seed = 42; };
+
+    struct Profiler  { int sampleRate = 60; };
+    struct Debugger  { bool attached = false; };
+    struct Analytics { std::string endpoint = "localhost"; };
+
+    struct FileSystem
+    {
+        FileSystem(Config& c, Logger& l, Profiler* p)
+            : config(&c), logger(&l), profiler(p) {}
+        Config* config; Logger* logger; Profiler* profiler;
+    };
+
+    struct Network
+    {
+        Network(Config& c, Logger& l, Timer& t, Debugger* d)
+            : config(&c), logger(&l), timer(&t), debugger(d) {}
+        Config* config; Logger* logger; Timer* timer; Debugger* debugger;
+    };
+
+    struct AudioDriver
+    {
+        AudioDriver(Config& c, Allocator& a) : config(&c), allocator(&a) {}
+        Config* config; Allocator* allocator;
+    };
+
+    struct GraphicsDriver
+    {
+        GraphicsDriver(Config& c, Logger& l, Timer& t, Allocator& a, RNG& r)
+            : config(&c), logger(&l), timer(&t), allocator(&a), rng(&r) {}
+        Config* config; Logger* logger; Timer* timer; Allocator* allocator; RNG* rng;
+    };
+
+    struct ResourceManager
+    {
+        ResourceManager(FileSystem& fs, Network& net, AudioDriver& ad)
+            : fileSystem(&fs), network(&net), audioDriver(&ad) {}
+        FileSystem* fileSystem; Network* network; AudioDriver* audioDriver;
+    };
+
+    struct SceneGraph
+    {
+        SceneGraph(GraphicsDriver& gd, AudioDriver& ad, FileSystem& fs, Analytics* a)
+            : graphicsDriver(&gd), audioDriver(&ad), fileSystem(&fs), analytics(a) {}
+        GraphicsDriver* graphicsDriver; AudioDriver* audioDriver; FileSystem* fileSystem;
+        Analytics* analytics;
+    };
+
+    struct EventBus
+    {
+        EventBus(Network& net, FileSystem& fs)
+            : network(&net), fileSystem(&fs) {}
+        Network* network; FileSystem* fileSystem;
+    };
+
+    struct World
+    {
+        World(ResourceManager& rm, SceneGraph& sg, EventBus& eb)
+            : resourceManager(&rm), sceneGraph(&sg), eventBus(&eb) {}
+        ResourceManager* resourceManager; SceneGraph* sceneGraph; EventBus* eventBus;
+    };
+
+    struct Simulation
+    {
+        Simulation(SceneGraph& sg, EventBus& eb)
+            : sceneGraph(&sg), eventBus(&eb) {}
+        SceneGraph* sceneGraph; EventBus* eventBus;
+    };
+
+    struct Engine
+    {
+        Engine(World& w, Simulation& s, Debugger* d)
+            : world(&w), simulation(&s), debugger(d) {}
+        World* world; Simulation* simulation; Debugger* debugger;
+    };
+}
+
 static int testsPassed = 0;
 static int testsFailed = 0;
 
@@ -300,6 +384,67 @@ void TestInstantiate()
     ASSERT(ptr == nullptr);
 }
 REGISTER_TEST(TestInstantiate);
+
+void TestComplexDependencyTree()
+{
+    auto context = Gx::Context();
+
+    // Resolve the root — auto-wires the entire 5-level tree
+    auto& engine = context.Require<Complex::Engine>();
+
+    // Level 1: Engine
+    ASSERT(engine.world != nullptr);
+    ASSERT(engine.simulation != nullptr);
+
+    // Level 2: World, Simulation
+    ASSERT(engine.world->resourceManager != nullptr);
+    ASSERT(engine.world->sceneGraph != nullptr);
+    ASSERT(engine.world->eventBus != nullptr);
+    ASSERT(engine.simulation->sceneGraph != nullptr);
+    ASSERT(engine.simulation->eventBus != nullptr);
+
+    // Level 3: ResourceManager, SceneGraph, EventBus
+    ASSERT(engine.world->resourceManager->fileSystem != nullptr);
+    ASSERT(engine.world->resourceManager->network != nullptr);
+    ASSERT(engine.world->resourceManager->audioDriver != nullptr);
+    ASSERT(engine.world->sceneGraph->graphicsDriver != nullptr);
+    ASSERT(engine.world->sceneGraph->audioDriver != nullptr);
+    ASSERT(engine.world->sceneGraph->fileSystem != nullptr);
+    ASSERT(engine.world->eventBus->network != nullptr);
+    ASSERT(engine.world->eventBus->fileSystem != nullptr);
+
+    // Level 4: FileSystem, Network, AudioDriver, GraphicsDriver
+    ASSERT(engine.world->resourceManager->fileSystem->config != nullptr);
+    ASSERT(engine.world->resourceManager->fileSystem->logger != nullptr);
+    ASSERT(engine.world->sceneGraph->graphicsDriver->config != nullptr);
+    ASSERT(engine.world->sceneGraph->graphicsDriver->rng != nullptr);
+
+    // Level 5: Leaf values
+    ASSERT(engine.world->sceneGraph->graphicsDriver->config->version == 1);
+    ASSERT(engine.world->sceneGraph->graphicsDriver->rng->seed == 42);
+    ASSERT(engine.world->resourceManager->network->timer->delta == 0.016f);
+    ASSERT(engine.world->resourceManager->audioDriver->allocator->poolSize == 1024);
+
+    // Unregistered pointer params must be nullptr
+    ASSERT(engine.debugger == nullptr);
+    ASSERT(engine.world->resourceManager->fileSystem->profiler == nullptr);
+    ASSERT(engine.world->resourceManager->network->debugger == nullptr);
+    ASSERT(engine.world->sceneGraph->analytics == nullptr);
+
+    // Shared dependencies resolve to the same instance within the context
+    auto* configFromFS = engine.world->resourceManager->fileSystem->config;
+    auto* configFromGD = engine.world->sceneGraph->graphicsDriver->config;
+    auto* configFromNet = engine.world->resourceManager->network->config;
+    auto* configFromAD = engine.world->resourceManager->audioDriver->config;
+    ASSERT(configFromFS == configFromGD);
+    ASSERT(configFromFS == configFromNet);
+    ASSERT(configFromFS == configFromAD);
+
+    // World and Simulation share the same SceneGraph and EventBus
+    ASSERT(engine.world->sceneGraph == engine.simulation->sceneGraph);
+    ASSERT(engine.world->eventBus == engine.simulation->eventBus);
+}
+REGISTER_TEST(TestComplexDependencyTree);
 
 int main(int argc, char* argv[])
 {
