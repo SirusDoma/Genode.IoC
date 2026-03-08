@@ -227,7 +227,56 @@ cmake --build build --config Release --target benchmarks
 The following benchmarks run using Github Action runners.
 
 <!-- BENCHMARK_START -->
-*Benchmarks are updated automatically on each push to main via CI.*
+**MSVC** (`windows-latest`)
+
+> CPU: AMD EPYC 7763 64-Core Processor                 (2 cores, 4 threads) | Memory: 15 GB
+
+| Benchmark | Result |
+|-----------|-------:|
+| Provide | 234.1 ns/op |
+| Require (first) | 321.9 ns/op |
+| Require (cached) | 26.4 ns/op |
+| Require (auto-wire) | 1082.1 ns/op |
+| Require (interface) | 527.5 ns/op |
+| Require (pointer, miss) | 14.7 ns/op |
+| Instantiate | 60.8 ns/op |
+| CreateScope | 393.5 ns/op |
+| Capture | 491.6 ns/op |
+
+**GCC** (`ubuntu-latest`)
+
+> CPU: AMD EPYC 7763 64-Core Processor (4 cores, 4 threads) | Memory: 15 GB
+
+| Benchmark | Result |
+|-----------|-------:|
+| Provide | 712.9 ns/op |
+| Require (first) | 1288.5 ns/op |
+| Require (cached) | 130.3 ns/op |
+| Require (auto-wire) | 4041.8 ns/op |
+| Require (interface) | 1408.1 ns/op |
+| Require (pointer, miss) | 40.0 ns/op |
+| Instantiate | 208.4 ns/op |
+| CreateScope | 1983.6 ns/op |
+| Capture | 2410.4 ns/op |
+
+**Clang** (`macos-latest`)
+
+> CPU: Apple M1 (Virtual) (3 cores, 3 threads) | Memory: 7 GB
+
+| Benchmark | Result |
+|-----------|-------:|
+| Provide | 834.4 ns/op |
+| Require (first) | 1175.2 ns/op |
+| Require (cached) | 100.1 ns/op |
+| Require (auto-wire) | 3632.0 ns/op |
+| Require (interface) | 1391.6 ns/op |
+| Require (pointer, miss) | 50.1 ns/op |
+| Instantiate | 155.5 ns/op |
+| CreateScope | 2030.6 ns/op |
+| Capture | 2522.9 ns/op |
+
+*Commit: [`4095c62`](https://github.com/SirusDoma/Genode.IoC/commit/4095c620c4c168bfdaa69d76c38396de633d762b)*
+
 <!-- BENCHMARK_END -->
 
 ## License ##
