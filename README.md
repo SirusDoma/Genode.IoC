@@ -233,15 +233,15 @@ The following benchmarks run using Github Action runners.
 
 | Benchmark | Result |
 |-----------|-------:|
-| Provide | 234.1 ns/op |
-| Require (first) | 321.9 ns/op |
+| Provide | 195.9 ns/op |
+| Require (first) | 295.4 ns/op |
 | Require (cached) | 26.4 ns/op |
-| Require (auto-wire) | 1082.1 ns/op |
-| Require (interface) | 527.5 ns/op |
+| Require (auto-wire) | 1016.8 ns/op |
+| Require (interface) | 502.0 ns/op |
 | Require (pointer, miss) | 14.7 ns/op |
-| Instantiate | 60.8 ns/op |
-| CreateScope | 393.5 ns/op |
-| Capture | 491.6 ns/op |
+| Instantiate | 58.7 ns/op |
+| CreateScope | 406.7 ns/op |
+| Capture | 473.7 ns/op |
 
 **GCC** (`ubuntu-latest`)
 
@@ -249,15 +249,15 @@ The following benchmarks run using Github Action runners.
 
 | Benchmark | Result |
 |-----------|-------:|
-| Provide | 712.9 ns/op |
-| Require (first) | 1288.5 ns/op |
-| Require (cached) | 130.3 ns/op |
-| Require (auto-wire) | 4041.8 ns/op |
-| Require (interface) | 1408.1 ns/op |
-| Require (pointer, miss) | 40.0 ns/op |
-| Instantiate | 208.4 ns/op |
-| CreateScope | 1983.6 ns/op |
-| Capture | 2410.4 ns/op |
+| Provide | 713.2 ns/op |
+| Require (first) | 1213.3 ns/op |
+| Require (cached) | 112.9 ns/op |
+| Require (auto-wire) | 3998.7 ns/op |
+| Require (interface) | 1403.9 ns/op |
+| Require (pointer, miss) | 40.1 ns/op |
+| Instantiate | 208.3 ns/op |
+| CreateScope | 1978.7 ns/op |
+| Capture | 2385.6 ns/op |
 
 **Clang** (`macos-latest`)
 
@@ -265,17 +265,17 @@ The following benchmarks run using Github Action runners.
 
 | Benchmark | Result |
 |-----------|-------:|
-| Provide | 834.4 ns/op |
-| Require (first) | 1175.2 ns/op |
-| Require (cached) | 100.1 ns/op |
-| Require (auto-wire) | 3632.0 ns/op |
-| Require (interface) | 1391.6 ns/op |
+| Provide | 1349.7 ns/op |
+| Require (first) | 1256.3 ns/op |
+| Require (cached) | 104.8 ns/op |
+| Require (auto-wire) | 3612.3 ns/op |
+| Require (interface) | 1386.3 ns/op |
 | Require (pointer, miss) | 50.1 ns/op |
-| Instantiate | 155.5 ns/op |
-| CreateScope | 2030.6 ns/op |
-| Capture | 2522.9 ns/op |
+| Instantiate | 154.5 ns/op |
+| CreateScope | 2009.6 ns/op |
+| Capture | 2518.4 ns/op |
 
-*Commit: [`4095c62`](https://github.com/SirusDoma/Genode.IoC/commit/4095c620c4c168bfdaa69d76c38396de633d762b)*
+*Commit: [`48cc713`](https://github.com/SirusDoma/Genode.IoC/commit/48cc71333c29074c2c4f14c4d484f50ce7f0b27b)*
 
 <!-- BENCHMARK_END -->
 
