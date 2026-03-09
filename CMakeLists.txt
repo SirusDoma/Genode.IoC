@@ -26,6 +26,12 @@ set(TEST_NAMES
     TestCaptureFromScope
     TestRequireAutoRegistersInCurrentContext
     TestInstantiate
+    TestRequireThrowsOnUnresolvable
+    TestInstantiateThrowsOnUnresolvable
+    TestDestructionOrder
+    TestDestructionOrderMultipleChains
+    TestDestructionOrderComplex
+    TestDestructionOrderSingleton
     TestComplexDependencyTree
 )
 

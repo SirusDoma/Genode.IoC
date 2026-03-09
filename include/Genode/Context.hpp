@@ -1,11 +1,9 @@
 #pragma once
 
-#ifndef GENODE_CONTEXT_HPP
-#define GENODE_CONTEXT_HPP
-
 #include <memory>
 #include <functional>
 #include <unordered_map>
+#include <vector>
 #include <typeindex>
 #include <type_traits>
 #include <stdexcept>
@@ -30,18 +28,21 @@ namespace Gx
                 !std::is_pointer_v<T> &&
                 !std::is_same_v<std::decay_t<T>, std::decay_t<Exclude>> &&
                 !std::is_same_v<std::decay_t<T>, Context>>>
+            // ReSharper disable once CppFunctionIsNotImplemented CppNonExplicitConversionOperator
             operator T& () const noexcept;
 
             template <typename T, typename = std::enable_if_t<
                 !std::is_pointer_v<T> &&
                 !std::is_same_v<std::decay_t<T>, std::decay_t<Exclude>> &&
                 !std::is_same_v<std::decay_t<T>, Context>>>
+            // ReSharper disable once CppFunctionIsNotImplemented CppNonExplicitConversionOperator
             operator T&& () const noexcept;
 
             template <typename T, typename = std::enable_if_t<
                 std::is_pointer_v<T> &&
                 !std::is_same_v<std::decay_t<std::remove_pointer_t<T>>, std::decay_t<Exclude>> &&
                 !std::is_same_v<std::decay_t<std::remove_pointer_t<T>>, Context>>, typename = void>
+            // ReSharper disable once CppFunctionIsNotImplemented CppNonExplicitConversionOperator
             operator T () const noexcept;
         };
 
@@ -84,18 +85,21 @@ namespace Gx
                 !std::is_pointer_v<T> &&
                 !std::is_same_v<std::decay_t<T>, std::decay_t<Owner>> &&
                 !std::is_same_v<std::decay_t<T>, Context>>>
+            // ReSharper disable once CppNonExplicitConversionOperator
             operator T& () const;
 
             template <typename T, typename = std::enable_if_t<
                 !std::is_pointer_v<T> &&
                 !std::is_same_v<std::decay_t<T>, std::decay_t<Owner>> &&
                 !std::is_same_v<std::decay_t<T>, Context>>>
+            // ReSharper disable once CppNonExplicitConversionOperator
             operator T&& () const;
 
             template <typename T, typename = std::enable_if_t<
                 std::is_pointer_v<T> &&
                 !std::is_same_v<std::decay_t<std::remove_pointer_t<T>>, std::decay_t<Owner>> &&
                 !std::is_same_v<std::decay_t<std::remove_pointer_t<T>>, Context>>, typename = void>
+            // ReSharper disable once CppNonExplicitConversionOperator
             operator T () const;
         };
 
@@ -115,8 +119,8 @@ namespace Gx
         Context& operator=(const Context&) = delete;
 
         Context(Context&& other) noexcept
-            : m_parent(other.m_parent)
-            , m_entries(std::move(other.m_entries))
+            : m_parent(other.m_parent),
+              m_entries(std::move(other.m_entries))
         {}
 
         Context& operator=(Context&& other) noexcept
@@ -125,6 +129,7 @@ namespace Gx
             {
                 m_parent  = other.m_parent;
                 m_entries = std::move(other.m_entries);
+                m_current = nullptr;
             }
             return *this;
         }
@@ -137,10 +142,10 @@ namespace Gx
                 "constructor was found within the arity limit. "
                 "Use Provide<Interface, Concrete>() or Provide<T>(builder) instead.");
 
-            auto key = std::type_index(typeid(T));
+            const auto key = std::type_index(typeid(T));
             auto svc = std::make_shared<Service<T>>();
-            svc->Lifetime = scope;
-            svc->Builder  = CreateBuilder<T>();
+            svc->Lifetime  = scope;
+            svc->Builder   = CreateBuilder<T>();
             m_entries[key] = std::move(svc);
         }
 
@@ -152,7 +157,7 @@ namespace Gx
             static_assert(IsConstructible<TConcrete>,
                 "Concrete type must be constructible (not abstract, valid constructor).");
 
-            auto key = std::type_index(typeid(TInterface));
+            const auto key = std::type_index(typeid(TInterface));
             auto svc = std::make_shared<Service<TInterface>>();
             svc->Lifetime = scope;
             svc->Builder  = [](Context& c) -> std::unique_ptr<TInterface>
@@ -166,10 +171,10 @@ namespace Gx
         void Provide(std::function<std::unique_ptr<T>(Context&)> builder,
                      Scope scope = Scope::Local)
         {
-            auto key = std::type_index(typeid(T));
+            const auto key = std::type_index(typeid(T));
             auto svc = std::make_shared<Service<T>>();
-            svc->Lifetime = scope;
-            svc->Builder  = std::move(builder);
+            svc->Lifetime  = scope;
+            svc->Builder   = std::move(builder);
             m_entries[key] = std::move(svc);
         }
 
@@ -178,14 +183,26 @@ namespace Gx
         Require()
         {
             using Type = std::remove_cv_t<std::remove_reference_t<T>>;
-            auto key = std::type_index(typeid(Type));
+            const auto key = std::type_index(typeid(Type));
 
             if (auto* svc = GetService<Type>(key))
             {
                 if (svc->Instance)
-                    return *svc->Instance;
+                {
+                    if (m_current)
+                        m_current->Dependencies.push_back(m_entries[key]);
 
+                    return *svc->Instance;
+                }
+
+                auto* prev = m_current;
+                m_current = svc;
                 svc->Instance = svc->Builder(*this);
+                m_current = prev;
+
+                if (m_current)
+                    m_current->Dependencies.push_back(m_entries[key]);
+
                 return *svc->Instance;
             }
 
@@ -198,9 +215,7 @@ namespace Gx
             if constexpr (IsConstructible<Type>)
             {
                 Provide<Type>();
-                auto* svc = GetService<Type>(key);
-                svc->Instance = svc->Builder(*this);
-                return *svc->Instance;
+                return Require<T>();
             }
             else
             {
@@ -215,14 +230,25 @@ namespace Gx
         Require()
         {
             using Type = std::remove_cv_t<std::remove_pointer_t<T>>;
-            auto key = std::type_index(typeid(Type));
+            const auto key = std::type_index(typeid(Type));
 
             if (auto* svc = GetService<Type>(key))
             {
                 if (svc->Instance)
+                {
+                    if (m_current)
+                        m_current->Dependencies.push_back(m_entries[key]);
                     return svc->Instance.get();
+                }
 
+                auto* prev = m_current;
+                m_current = svc;
                 svc->Instance = svc->Builder(*this);
+                m_current = prev;
+
+                if (m_current)
+                    m_current->Dependencies.push_back(m_entries[key]);
+
                 return svc->Instance.get();
             }
 
@@ -236,7 +262,7 @@ namespace Gx
         std::unique_ptr<T> Instantiate()
         {
             using Type = std::remove_cv_t<std::remove_reference_t<T>>;
-            auto key = std::type_index(typeid(Type));
+            const auto key = std::type_index(typeid(Type));
 
             if (auto* svc = GetService<Type>(key))
                 return svc->Builder(*this);
@@ -288,8 +314,9 @@ namespace Gx
         struct Scopable
         {
             Scope Lifetime = Scope::Local;
+            std::vector<std::shared_ptr<Scopable>> Dependencies;
             virtual ~Scopable() = default;
-            virtual std::shared_ptr<Scopable> Clone(bool reset) const = 0;
+            [[nodiscard]] virtual std::shared_ptr<Scopable> Clone(bool reset) const = 0;
         };
 
         template <typename T>
@@ -298,6 +325,7 @@ namespace Gx
             std::function<std::unique_ptr<T>(Context&)> Builder;
             std::shared_ptr<T> Instance;
 
+            [[nodiscard]]
             std::shared_ptr<Scopable> Clone(bool reset) const override
             {
                 auto clone = std::make_shared<Service<T>>();
@@ -333,15 +361,15 @@ namespace Gx
         template <typename T>
         Service<T>* GetService(std::type_index key)
         {
-            auto it = m_entries.find(key);
-            if (it != m_entries.end())
+            if (const auto it = m_entries.find(key); it != m_entries.end())
                 return static_cast<Service<T>*>(it->second.get());
 
             return nullptr;
         }
 
-        Context*   m_parent;
+        Context*    m_parent;
         ScopableMap m_entries;
+        Scopable*   m_current = nullptr;
     };
 
     namespace Detail
@@ -367,7 +395,4 @@ namespace Gx
             return Ctx.Require<T>();
         }
     }
-
 }
-
-#endif

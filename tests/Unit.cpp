@@ -59,6 +59,184 @@ struct AudioSystem
     int Channels;
 };
 
+// Destruction order tracking
+namespace Lifecycle
+{
+    struct DestructionLog
+    {
+        std::vector<std::string> Entries;
+    };
+
+    // Simple chain (3 levels)
+    struct SoundBuffer
+    {
+        SoundBuffer(DestructionLog& log) : m_log(&log) {}
+        ~SoundBuffer() { m_log->Entries.push_back("SoundBuffer"); }
+        DestructionLog* m_log;
+    };
+
+    struct SoundSource
+    {
+        SoundSource(SoundBuffer& b, DestructionLog& log) : buffer(&b), m_log(&log) {}
+        ~SoundSource() { m_log->Entries.push_back("SoundSource"); }
+        SoundBuffer* buffer;
+        DestructionLog* m_log;
+    };
+
+    struct SoundMixer
+    {
+        SoundMixer(SoundSource& s, DestructionLog& log) : source(&s), m_log(&log) {}
+        ~SoundMixer() { m_log->Entries.push_back("SoundMixer"); }
+        SoundSource* source;
+        DestructionLog* m_log;
+    };
+
+    // Input chain (3 levels)
+    struct InputDevice
+    {
+        InputDevice(DestructionLog& log) : m_log(&log) {}
+        ~InputDevice() { m_log->Entries.push_back("InputDevice"); }
+        DestructionLog* m_log;
+    };
+
+    struct InputMapper
+    {
+        InputMapper(InputDevice& d, DestructionLog& log) : device(&d), m_log(&log) {}
+        ~InputMapper() { m_log->Entries.push_back("InputMapper"); }
+        InputDevice* device;
+        DestructionLog* m_log;
+    };
+
+    struct InputProcessor
+    {
+        InputProcessor(InputMapper& m, DestructionLog& log) : mapper(&m), m_log(&log) {}
+        ~InputProcessor() { m_log->Entries.push_back("InputProcessor"); }
+        InputMapper* mapper;
+        DestructionLog* m_log;
+    };
+
+    // Animation chain (3 levels)
+    struct Skeleton
+    {
+        Skeleton(DestructionLog& log) : m_log(&log) {}
+        ~Skeleton() { m_log->Entries.push_back("Skeleton"); }
+        DestructionLog* m_log;
+    };
+
+    struct AnimationClip
+    {
+        AnimationClip(Skeleton& s, DestructionLog& log) : skeleton(&s), m_log(&log) {}
+        ~AnimationClip() { m_log->Entries.push_back("AnimationClip"); }
+        Skeleton* skeleton;
+        DestructionLog* m_log;
+    };
+
+    struct Animator
+    {
+        Animator(AnimationClip& c, DestructionLog& log) : clip(&c), m_log(&log) {}
+        ~Animator() { m_log->Entries.push_back("Animator"); }
+        AnimationClip* clip;
+        DestructionLog* m_log;
+    };
+
+    // Physics chain (3 levels)
+    struct Collider
+    {
+        Collider(DestructionLog& log) : m_log(&log) {}
+        ~Collider() { m_log->Entries.push_back("Collider"); }
+        DestructionLog* m_log;
+    };
+
+    struct RigidBody
+    {
+        RigidBody(Collider& c, DestructionLog& log) : collider(&c), m_log(&log) {}
+        ~RigidBody() { m_log->Entries.push_back("RigidBody"); }
+        Collider* collider;
+        DestructionLog* m_log;
+    };
+
+    struct PhysicsSolver
+    {
+        PhysicsSolver(RigidBody& r, DestructionLog& log) : rigidBody(&r), m_log(&log) {}
+        ~PhysicsSolver() { m_log->Entries.push_back("PhysicsSolver"); }
+        RigidBody* rigidBody;
+        DestructionLog* m_log;
+    };
+
+    // Network chain (3 levels)
+    struct Socket
+    {
+        Socket(DestructionLog& log) : m_log(&log) {}
+        ~Socket() { m_log->Entries.push_back("Socket"); }
+        DestructionLog* m_log;
+    };
+
+    struct PacketQueue
+    {
+        PacketQueue(Socket& s, DestructionLog& log) : socket(&s), m_log(&log) {}
+        ~PacketQueue() { m_log->Entries.push_back("PacketQueue"); }
+        Socket* socket;
+        DestructionLog* m_log;
+    };
+
+    struct NetworkPeer
+    {
+        NetworkPeer(PacketQueue& q, DestructionLog& log) : queue(&q), m_log(&log) {}
+        ~NetworkPeer() { m_log->Entries.push_back("NetworkPeer"); }
+        PacketQueue* queue;
+        DestructionLog* m_log;
+    };
+
+    // Diamond + shared deps (6 types)
+    struct ShaderCompiler
+    {
+        ShaderCompiler(DestructionLog& log) : m_log(&log) {}
+        ~ShaderCompiler() { m_log->Entries.push_back("ShaderCompiler"); }
+        DestructionLog* m_log;
+    };
+
+    struct TextureAtlas
+    {
+        TextureAtlas(DestructionLog& log) : m_log(&log) {}
+        ~TextureAtlas() { m_log->Entries.push_back("TextureAtlas"); }
+        DestructionLog* m_log;
+    };
+
+    struct MeshRenderer
+    {
+        MeshRenderer(ShaderCompiler& s, DestructionLog& log) : shader(&s), m_log(&log) {}
+        ~MeshRenderer() { m_log->Entries.push_back("MeshRenderer"); }
+        ShaderCompiler* shader;
+        DestructionLog* m_log;
+    };
+
+    struct ParticleEmitter
+    {
+        ParticleEmitter(ShaderCompiler& s, DestructionLog& log) : shader(&s), m_log(&log) {}
+        ~ParticleEmitter() { m_log->Entries.push_back("ParticleEmitter"); }
+        ShaderCompiler* shader;
+        DestructionLog* m_log;
+    };
+
+    struct SceneRenderer
+    {
+        SceneRenderer(MeshRenderer& m, ParticleEmitter& p, DestructionLog& log)
+            : mesh(&m), particles(&p), m_log(&log) {}
+        ~SceneRenderer() { m_log->Entries.push_back("SceneRenderer"); }
+        MeshRenderer* mesh; ParticleEmitter* particles;
+        DestructionLog* m_log;
+    };
+
+    struct DebugRenderer
+    {
+        DebugRenderer(MeshRenderer& m, TextureAtlas& t, DestructionLog& log)
+            : mesh(&m), textures(&t), m_log(&log) {}
+        ~DebugRenderer() { m_log->Entries.push_back("DebugRenderer"); }
+        MeshRenderer* mesh; TextureAtlas* textures;
+        DestructionLog* m_log;
+    };
+}
+
 // Complex dependency tree (5 levels, 2-5 deps per node)
 namespace Complex
 {
@@ -165,7 +343,7 @@ static std::vector<TestEntry>& Tests()
 void TestDefaultConstruction()
 {
     auto context = Gx::Context();
-    auto& input = context.Require<InputSystem>();
+    const auto& input = context.Require<InputSystem>();
     ASSERT(input.Value == 42);
 }
 REGISTER_TEST(TestDefaultConstruction);
@@ -173,7 +351,7 @@ REGISTER_TEST(TestDefaultConstruction);
 void TestAutoWiring()
 {
     auto context = Gx::Context();
-    auto& movement = context.Require<MovementSystem>();
+    const auto& movement = context.Require<MovementSystem>();
     ASSERT(movement.m_input  != nullptr);
     ASSERT(movement.m_physics != nullptr);
     ASSERT(movement.m_input->Value == 42);
@@ -184,7 +362,7 @@ void TestInterfaceBinding()
 {
     auto context = Gx::Context();
     context.Provide<IRenderer, OpenGLRenderer>();
-    auto& renderer = context.Require<IRenderer>();
+    const auto& renderer = context.Require<IRenderer>();
     ASSERT(renderer.Name() == "OpenGL");
 }
 REGISTER_TEST(TestInterfaceBinding);
@@ -193,7 +371,7 @@ void TestInterfaceDependency()
 {
     auto context = Gx::Context();
     context.Provide<IRenderer, OpenGLRenderer>();
-    auto& pipeline = context.Require<RenderPipeline>();
+    const auto& pipeline = context.Require<RenderPipeline>();
     ASSERT(pipeline.m_renderer != nullptr);
     ASSERT(pipeline.m_renderer->Name() == "OpenGL");
 }
@@ -210,7 +388,7 @@ void TestBuilderFactory()
         )
     );
 
-    auto& audio = context.Require<AudioSystem>();
+    const auto& audio = context.Require<AudioSystem>();
     ASSERT(audio.SampleRate == 44100);
     ASSERT(audio.Channels == 2);
 }
@@ -221,8 +399,8 @@ void TestSingletonScope()
     auto context = Gx::Context();
     context.Provide<InputSystem>(Gx::Scope::Singleton);
 
-    auto& a = context.Require<InputSystem>();
-    auto& b = context.Require<InputSystem>();
+    const auto& a = context.Require<InputSystem>();
+    const auto& b = context.Require<InputSystem>();
 
     // Same instance within the same scope
     ASSERT(&a == &b);
@@ -230,8 +408,8 @@ void TestSingletonScope()
     {
         // Same instance in a child scope (singleton)
         auto scope = context.CreateScope();
-        auto& c = scope.Require<InputSystem>();
-        auto& d = scope.Require<InputSystem>();
+        const auto& c = scope.Require<InputSystem>();
+        const auto& d = scope.Require<InputSystem>();
 
         ASSERT(&c == &d);   // Same within child scope
         ASSERT(&a == &c);   // Same across scopes
@@ -244,8 +422,8 @@ void TestLocalScope()
     auto context = Gx::Context();
     context.Provide<InputSystem>(Gx::Scope::Local);
 
-    auto& a = context.Require<InputSystem>();
-    auto& b = context.Require<InputSystem>();
+    const auto& a = context.Require<InputSystem>();
+    const auto& b = context.Require<InputSystem>();
 
     // Same instance within the same scope
     ASSERT(&a == &b);
@@ -253,8 +431,8 @@ void TestLocalScope()
     {
         // Different instance in a child scope
         auto scope = context.CreateScope();
-        auto& c = scope.Require<InputSystem>();
-        auto& d = scope.Require<InputSystem>();
+        const auto& c = scope.Require<InputSystem>();
+        const auto& d = scope.Require<InputSystem>();
 
         ASSERT(&c == &d);   // Same within child scope
         ASSERT(&a != &c);   // Different across scopes
@@ -265,7 +443,7 @@ REGISTER_TEST(TestLocalScope);
 void TestPointerReturnsNullptr()
 {
     auto context = Gx::Context();
-    auto instance = context.Require<AudioSystem*>();
+    const auto instance = context.Require<AudioSystem*>();
     ASSERT(instance == nullptr);
 }
 REGISTER_TEST(TestPointerReturnsNullptr);
@@ -279,7 +457,7 @@ void TestOutOfOrderRegistration()
     context.Provide<InputSystem>();
 
     // Should still resolve correctly (lazy)
-    auto& movement = context.Require<MovementSystem>();
+    const auto& movement = context.Require<MovementSystem>();
     ASSERT(movement.m_input != nullptr);
     ASSERT(movement.m_physics != nullptr);
     ASSERT(movement.m_input->Value == 42);
@@ -291,13 +469,13 @@ void TestCapture()
     auto context = Gx::Context();
     context.Provide<InputSystem>(Gx::Scope::Singleton);
 
-    auto& original = context.Require<InputSystem>();
+    const auto& original = context.Require<InputSystem>();
 
     // Capture creates a standalone snapshot
     auto captured = context.Capture();
 
     // Singleton instance is shared (same pointer)
-    auto& fromCaptured = captured.Require<InputSystem>();
+    const auto& fromCaptured = captured.Require<InputSystem>();
     ASSERT(&original == &fromCaptured);
 
     // Register a new type on the source AFTER capture
@@ -305,7 +483,7 @@ void TestCapture()
     context.Require<PhysicsSystem>();
 
     // Captured context does NOT see the new registration
-    auto instance = captured.Require<PhysicsSystem*>();
+    const auto instance = captured.Require<PhysicsSystem*>();
     ASSERT(instance == nullptr);
 }
 REGISTER_TEST(TestCapture);
@@ -316,28 +494,28 @@ void TestCaptureFromScope()
     context.Provide<InputSystem>(Gx::Scope::Singleton);
     context.Provide<PhysicsSystem>(Gx::Scope::Local);
 
-    auto& singletonInst = context.Require<InputSystem>();
+    const auto& singletonInst = context.Require<InputSystem>();
 
     // Create a child scope, resolve local type in it
     auto scope = context.CreateScope();
-    auto& localInScope = scope.Require<PhysicsSystem>();
+    const auto& localInScope = scope.Require<PhysicsSystem>();
 
     // Capture the child scope
     auto snapshot = scope.Capture();
 
     // Singleton from root is pulled into captured context
-    auto& singletonFromCapture = snapshot.Require<InputSystem>();
+    const auto& singletonFromCapture = snapshot.Require<InputSystem>();
     ASSERT(&singletonInst == &singletonFromCapture);
 
     // Local instance from the scope is also copied
-    auto& localFromCapture = snapshot.Require<PhysicsSystem>();
+    const auto& localFromCapture = snapshot.Require<PhysicsSystem>();
     ASSERT(&localInScope == &localFromCapture);
 
     // Modifying parent after capture has no effect
     context.Provide<MovementSystem>();
     context.Require<MovementSystem>();
 
-    auto instance = snapshot.Require<MovementSystem*>();
+    const auto instance = snapshot.Require<MovementSystem*>();
     ASSERT(instance == nullptr);
 }
 REGISTER_TEST(TestCaptureFromScope);
@@ -348,15 +526,15 @@ void TestRequireAutoRegistersInCurrentContext()
     auto child  = parent.CreateScope();
 
     // Require on child: PhysicsSystem not registered anywhere
-    auto& physics = child.Require<PhysicsSystem>();
+    const auto& physics = child.Require<PhysicsSystem>();
     ASSERT(physics.Gravity == 9.81f);
 
     // Parent must NOT have it
-    auto* fromParent = parent.Require<PhysicsSystem*>();
+    const auto* fromParent = parent.Require<PhysicsSystem*>();
     ASSERT(fromParent == nullptr);
 
     // Child must have it
-    auto* fromChild = child.Require<PhysicsSystem*>();
+    const auto* fromChild = child.Require<PhysicsSystem*>();
     ASSERT(fromChild != nullptr);
     ASSERT(fromChild == &physics);
 }
@@ -368,19 +546,19 @@ void TestInstantiate()
     context.Provide<InputSystem>();
 
     // Instantiate returns a fresh instance each time
-    auto a = context.Instantiate<InputSystem>();
-    auto b = context.Instantiate<InputSystem>();
+    const auto a = context.Instantiate<InputSystem>();
+    const auto b = context.Instantiate<InputSystem>();
     ASSERT(a != nullptr);
     ASSERT(b != nullptr);
     ASSERT(a.get() != b.get());
 
     // Instantiate on unregistered type creates on the fly without providing
-    auto c = context.Instantiate<PhysicsSystem>();
+    const auto c = context.Instantiate<PhysicsSystem>();
     ASSERT(c != nullptr);
     ASSERT(c->Gravity == 9.81f);
 
     // The type must NOT be registered in the context
-    auto* ptr = context.Require<PhysicsSystem*>();
+    const auto* ptr = context.Require<PhysicsSystem*>();
     ASSERT(ptr == nullptr);
 }
 REGISTER_TEST(TestInstantiate);
@@ -421,12 +599,144 @@ void TestInstantiateThrowsOnUnresolvable()
 }
 REGISTER_TEST(TestInstantiateThrowsOnUnresolvable);
 
+void TestDestructionOrder()
+{
+    auto root = Gx::Context();
+    root.Provide<Lifecycle::DestructionLog>(Gx::Scope::Singleton);
+
+    {
+        auto scope = root.CreateScope();
+        scope.Require<Lifecycle::SoundMixer>();
+    }
+
+    const auto& log = root.Require<Lifecycle::DestructionLog>();
+    ASSERT(log.Entries.size() == 3);
+    ASSERT(log.Entries[0] == "SoundMixer");
+    ASSERT(log.Entries[1] == "SoundSource");
+    ASSERT(log.Entries[2] == "SoundBuffer");
+}
+REGISTER_TEST(TestDestructionOrder);
+
+void TestDestructionOrderMultipleChains()
+{
+    auto root = Gx::Context();
+    root.Provide<Lifecycle::DestructionLog>(Gx::Scope::Singleton);
+
+    {
+        auto scope = root.CreateScope();
+        scope.Require<Lifecycle::SoundMixer>();
+        scope.Require<Lifecycle::InputProcessor>();
+        scope.Require<Lifecycle::Animator>();
+        scope.Require<Lifecycle::PhysicsSolver>();
+        scope.Require<Lifecycle::NetworkPeer>();
+    }
+
+    const auto& log = root.Require<Lifecycle::DestructionLog>();
+
+    // Helper: find position of a type in the destruction log
+    auto pos = [&](const std::string& name) -> int
+    {
+        for (int i = 0; i < static_cast<int>(log.Entries.size()); ++i)
+            if (log.Entries[i] == name) return i;
+        return -1;
+    };
+
+    // All 15 types destroyed (5 chains x 3 levels)
+    ASSERT(log.Entries.size() == 15);
+
+    // Audio chain: SoundMixer -> SoundSource -> SoundBuffer
+    ASSERT(pos("SoundMixer")  < pos("SoundSource"));
+    ASSERT(pos("SoundSource") < pos("SoundBuffer"));
+
+    // Input chain: InputProcessor -> InputMapper -> InputDevice
+    ASSERT(pos("InputProcessor") < pos("InputMapper"));
+    ASSERT(pos("InputMapper")    < pos("InputDevice"));
+
+    // Animation chain: Animator -> AnimationClip -> Skeleton
+    ASSERT(pos("Animator")      < pos("AnimationClip"));
+    ASSERT(pos("AnimationClip") < pos("Skeleton"));
+
+    // Physics chain: PhysicsSolver -> RigidBody -> Collider
+    ASSERT(pos("PhysicsSolver") < pos("RigidBody"));
+    ASSERT(pos("RigidBody")     < pos("Collider"));
+
+    // Network chain: NetworkPeer -> PacketQueue -> Socket
+    ASSERT(pos("NetworkPeer") < pos("PacketQueue"));
+    ASSERT(pos("PacketQueue") < pos("Socket"));
+}
+REGISTER_TEST(TestDestructionOrderMultipleChains);
+
+void TestDestructionOrderComplex()
+{
+    auto root = Gx::Context();
+    root.Provide<Lifecycle::DestructionLog>(Gx::Scope::Singleton);
+
+    {
+        auto scope = root.CreateScope();
+        scope.Require<Lifecycle::SceneRenderer>();
+        scope.Require<Lifecycle::DebugRenderer>();
+    }
+
+    const auto& log = root.Require<Lifecycle::DestructionLog>();
+
+    // Helper: find position of a type in the destruction log
+    auto pos = [&](const std::string& name) -> int
+    {
+        for (int i = 0; i < static_cast<int>(log.Entries.size()); ++i)
+            if (log.Entries[i] == name) return i;
+        return -1;
+    };
+
+    // All 6 types must be destroyed
+    ASSERT(log.Entries.size() == 6);
+
+    // SceneRenderer must be destroyed before its deps
+    ASSERT(pos("SceneRenderer") < pos("MeshRenderer"));
+    ASSERT(pos("SceneRenderer") < pos("ParticleEmitter"));
+
+    // DebugRenderer must be destroyed before its deps
+    ASSERT(pos("DebugRenderer") < pos("MeshRenderer"));
+    ASSERT(pos("DebugRenderer") < pos("TextureAtlas"));
+
+    // MeshRenderer and ParticleEmitter must be destroyed before ShaderCompiler
+    ASSERT(pos("MeshRenderer") < pos("ShaderCompiler"));
+    ASSERT(pos("ParticleEmitter") < pos("ShaderCompiler"));
+}
+REGISTER_TEST(TestDestructionOrderComplex);
+
+void TestDestructionOrderSingleton()
+{
+    auto root = Gx::Context();
+    root.Provide<Lifecycle::DestructionLog>(Gx::Scope::Singleton);
+    root.Provide<Lifecycle::SoundBuffer>(Gx::Scope::Singleton);
+    root.Provide<Lifecycle::SoundSource>(Gx::Scope::Singleton);
+    root.Provide<Lifecycle::SoundMixer>(Gx::Scope::Local);
+
+    {
+        auto scope = root.CreateScope();
+        scope.Require<Lifecycle::SoundMixer>();
+    }
+
+    const auto& log = root.Require<Lifecycle::DestructionLog>();
+
+    // Only the Local type (SoundMixer) is destroyed
+    ASSERT(log.Entries.size() == 1);
+    ASSERT(log.Entries[0] == "SoundMixer");
+
+    // Singletons survive child scope destruction
+    const auto* source = root.Require<Lifecycle::SoundSource*>();
+    const auto* buffer = root.Require<Lifecycle::SoundBuffer*>();
+    ASSERT(source != nullptr);
+    ASSERT(buffer != nullptr);
+}
+REGISTER_TEST(TestDestructionOrderSingleton);
+
 void TestComplexDependencyTree()
 {
     auto context = Gx::Context();
 
     // Resolve the root — auto-wires the entire 5-level tree
-    auto& engine = context.Require<Complex::Engine>();
+    const auto& engine = context.Require<Complex::Engine>();
 
     // Level 1: Engine
     ASSERT(engine.world != nullptr);
@@ -468,10 +778,10 @@ void TestComplexDependencyTree()
     ASSERT(engine.world->sceneGraph->analytics == nullptr);
 
     // Shared dependencies resolve to the same instance within the context
-    auto* configFromFS = engine.world->resourceManager->fileSystem->config;
-    auto* configFromGD = engine.world->sceneGraph->graphicsDriver->config;
-    auto* configFromNet = engine.world->resourceManager->network->config;
-    auto* configFromAD = engine.world->resourceManager->audioDriver->config;
+    const auto* configFromFS = engine.world->resourceManager->fileSystem->config;
+    const auto* configFromGD = engine.world->sceneGraph->graphicsDriver->config;
+    const auto* configFromNet = engine.world->resourceManager->network->config;
+    const auto* configFromAD = engine.world->resourceManager->audioDriver->config;
     ASSERT(configFromFS == configFromGD);
     ASSERT(configFromFS == configFromNet);
     ASSERT(configFromFS == configFromAD);
@@ -493,7 +803,7 @@ int main(int argc, char* argv[])
 
     if (argc == 2)
     {
-        std::string target = argv[1];
+        const std::string target = argv[1];
         for (auto& t : Tests())
         {
             if (t.name == target)
@@ -510,11 +820,11 @@ int main(int argc, char* argv[])
     std::cout << "Genode.IoC Tests" << std::endl;
     std::cout << "================" << std::endl;
 
-    for (auto& t : Tests())
+    for (auto& [name, fn] : Tests())
     {
-        std::cout << "  " << t.name << "... ";
+        std::cout << "  " << name << "... ";
         try {
-            t.fn();
+            fn();
             std::cout << "PASSED" << std::endl;
             ++testsPassed;
         } catch (const std::exception& e) {
