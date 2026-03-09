@@ -1,5 +1,5 @@
 # Genode.IoC #
-Genode.IoC is a non-intrusive, single-header IoC container for C++17.  
+Genode.IoC is a non-intrusive, single-header [IoC container](https://en.wikipedia.org/wiki/Inversion_of_control) for C++17.  
 It is a subset module of **Genode** (**G**ame **E**ngi**N**e **O**n **DE**mand), my in-house game engine.
 
 While more powerful and flexible IoC solutions exist, Genode.IoC is designed for lightweight projects that need a simple, small-footprint, yet still powerful dependency injection container.
