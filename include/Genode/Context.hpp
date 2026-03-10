@@ -134,33 +134,28 @@ namespace Gx
             return *this;
         }
 
-        template <typename T>
+        template <typename T, std::enable_if_t<IsConstructible<T>, int> = 0>
         void Provide(Scope scope = Scope::Local)
         {
-            static_assert(IsConstructible<T>,
-                "Cannot resolve type. Either it is abstract or no public "
-                "constructor was found within the arity limit. "
-                "Use Provide<Interface, Concrete>() or Provide<T>(builder) instead.");
-
             const auto key = std::type_index(typeid(T));
-            auto svc = std::make_shared<Service<T>>();
+            auto svc       = std::make_shared<Service<T>>();
             svc->Lifetime  = scope;
             svc->Builder   = CreateBuilder<T>();
             m_entries[key] = std::move(svc);
         }
 
-        template <typename TInterface, typename TConcrete>
+        template <typename TInterface, typename TConcrete,
+            std::enable_if_t<
+                std::is_base_of_v<TInterface, TConcrete> &&
+                IsConstructible<TConcrete>, int
+            > = 0
+        >
         void Provide(Scope scope = Scope::Local)
         {
-            static_assert(std::is_base_of_v<TInterface, TConcrete>,
-                "Concrete type must derive from the interface type.");
-            static_assert(IsConstructible<TConcrete>,
-                "Concrete type must be constructible (not abstract, valid constructor).");
-
             const auto key = std::type_index(typeid(TInterface));
-            auto svc = std::make_shared<Service<TInterface>>();
-            svc->Lifetime = scope;
-            svc->Builder  = [](Context& c) -> std::unique_ptr<TInterface>
+            auto svc       = std::make_shared<Service<TInterface>>();
+            svc->Lifetime  = scope;
+            svc->Builder   = [](Context& c) -> std::unique_ptr<TInterface>
             {
                 return CreateBuilder<TConcrete>()(c);
             };
@@ -172,7 +167,7 @@ namespace Gx
                      Scope scope = Scope::Local)
         {
             const auto key = std::type_index(typeid(T));
-            auto svc = std::make_shared<Service<T>>();
+            auto svc       = std::make_shared<Service<T>>();
             svc->Lifetime  = scope;
             svc->Builder   = std::move(builder);
             m_entries[key] = std::move(svc);
