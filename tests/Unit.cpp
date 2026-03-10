@@ -30,7 +30,7 @@ class IRenderer
 {
 public:
     virtual ~IRenderer() = default;
-    virtual std::string Name() const = 0;
+    [[nodiscard]] virtual std::string Name() const = 0;
 
 protected:
     IRenderer() = default;
@@ -39,20 +39,20 @@ protected:
 class OpenGLRenderer : public IRenderer
 {
 public:
-    std::string Name() const override { return "OpenGL"; }
+    [[nodiscard]] std::string Name() const override { return "OpenGL"; }
 };
 
 // Type that requires an interface dependency
 struct RenderPipeline
 {
-    RenderPipeline(IRenderer& renderer) : m_renderer(&renderer) {}
+    explicit RenderPipeline(IRenderer& renderer) : m_renderer(&renderer) {}
     IRenderer* m_renderer;
 };
 
 // Type for builder test
 struct AudioSystem
 {
-    AudioSystem(int sampleRate, int channels)
+    AudioSystem(const int sampleRate, const int channels)
         : SampleRate(sampleRate), Channels(channels) {}
 
     int SampleRate;
@@ -65,20 +65,31 @@ namespace Lifecycle
     struct DestructionLog
     {
         std::vector<std::string> Entries;
+
+        [[nodiscard]] int IndexOf(const std::string& name) const
+        {
+            for (int i = 0; i < static_cast<int>(Entries.size()); ++i)
+            {
+                if (Entries[i] == name)
+                    return i;
+            }
+
+            throw std::runtime_error(name + " not found");
+        }
     };
 
     // Simple chain (3 levels)
     struct SoundBuffer
     {
-        SoundBuffer(DestructionLog& log) : m_log(&log) {}
-        ~SoundBuffer() { m_log->Entries.push_back("SoundBuffer"); }
+        explicit SoundBuffer(DestructionLog& log) : m_log(&log) {}
+        ~SoundBuffer() { m_log->Entries.emplace_back("SoundBuffer"); }
         DestructionLog* m_log;
     };
 
     struct SoundSource
     {
         SoundSource(SoundBuffer& b, DestructionLog& log) : buffer(&b), m_log(&log) {}
-        ~SoundSource() { m_log->Entries.push_back("SoundSource"); }
+        ~SoundSource() { m_log->Entries.emplace_back("SoundSource"); }
         SoundBuffer* buffer;
         DestructionLog* m_log;
     };
@@ -86,7 +97,7 @@ namespace Lifecycle
     struct SoundMixer
     {
         SoundMixer(SoundSource& s, DestructionLog& log) : source(&s), m_log(&log) {}
-        ~SoundMixer() { m_log->Entries.push_back("SoundMixer"); }
+        ~SoundMixer() { m_log->Entries.emplace_back("SoundMixer"); }
         SoundSource* source;
         DestructionLog* m_log;
     };
@@ -94,15 +105,15 @@ namespace Lifecycle
     // Input chain (3 levels)
     struct InputDevice
     {
-        InputDevice(DestructionLog& log) : m_log(&log) {}
-        ~InputDevice() { m_log->Entries.push_back("InputDevice"); }
+        explicit InputDevice(DestructionLog& log) : m_log(&log) {}
+        ~InputDevice() { m_log->Entries.emplace_back("InputDevice"); }
         DestructionLog* m_log;
     };
 
     struct InputMapper
     {
         InputMapper(InputDevice& d, DestructionLog& log) : device(&d), m_log(&log) {}
-        ~InputMapper() { m_log->Entries.push_back("InputMapper"); }
+        ~InputMapper() { m_log->Entries.emplace_back("InputMapper"); }
         InputDevice* device;
         DestructionLog* m_log;
     };
@@ -110,7 +121,7 @@ namespace Lifecycle
     struct InputProcessor
     {
         InputProcessor(InputMapper& m, DestructionLog& log) : mapper(&m), m_log(&log) {}
-        ~InputProcessor() { m_log->Entries.push_back("InputProcessor"); }
+        ~InputProcessor() { m_log->Entries.emplace_back("InputProcessor"); }
         InputMapper* mapper;
         DestructionLog* m_log;
     };
@@ -118,15 +129,15 @@ namespace Lifecycle
     // Animation chain (3 levels)
     struct Skeleton
     {
-        Skeleton(DestructionLog& log) : m_log(&log) {}
-        ~Skeleton() { m_log->Entries.push_back("Skeleton"); }
+        explicit Skeleton(DestructionLog& log) : m_log(&log) {}
+        ~Skeleton() { m_log->Entries.emplace_back("Skeleton"); }
         DestructionLog* m_log;
     };
 
     struct AnimationClip
     {
         AnimationClip(Skeleton& s, DestructionLog& log) : skeleton(&s), m_log(&log) {}
-        ~AnimationClip() { m_log->Entries.push_back("AnimationClip"); }
+        ~AnimationClip() { m_log->Entries.emplace_back("AnimationClip"); }
         Skeleton* skeleton;
         DestructionLog* m_log;
     };
@@ -134,7 +145,7 @@ namespace Lifecycle
     struct Animator
     {
         Animator(AnimationClip& c, DestructionLog& log) : clip(&c), m_log(&log) {}
-        ~Animator() { m_log->Entries.push_back("Animator"); }
+        ~Animator() { m_log->Entries.emplace_back("Animator"); }
         AnimationClip* clip;
         DestructionLog* m_log;
     };
@@ -142,15 +153,15 @@ namespace Lifecycle
     // Physics chain (3 levels)
     struct Collider
     {
-        Collider(DestructionLog& log) : m_log(&log) {}
-        ~Collider() { m_log->Entries.push_back("Collider"); }
+        explicit Collider(DestructionLog& log) : m_log(&log) {}
+        ~Collider() { m_log->Entries.emplace_back("Collider"); }
         DestructionLog* m_log;
     };
 
     struct RigidBody
     {
         RigidBody(Collider& c, DestructionLog& log) : collider(&c), m_log(&log) {}
-        ~RigidBody() { m_log->Entries.push_back("RigidBody"); }
+        ~RigidBody() { m_log->Entries.emplace_back("RigidBody"); }
         Collider* collider;
         DestructionLog* m_log;
     };
@@ -158,7 +169,7 @@ namespace Lifecycle
     struct PhysicsSolver
     {
         PhysicsSolver(RigidBody& r, DestructionLog& log) : rigidBody(&r), m_log(&log) {}
-        ~PhysicsSolver() { m_log->Entries.push_back("PhysicsSolver"); }
+        ~PhysicsSolver() { m_log->Entries.emplace_back("PhysicsSolver"); }
         RigidBody* rigidBody;
         DestructionLog* m_log;
     };
@@ -166,15 +177,15 @@ namespace Lifecycle
     // Network chain (3 levels)
     struct Socket
     {
-        Socket(DestructionLog& log) : m_log(&log) {}
-        ~Socket() { m_log->Entries.push_back("Socket"); }
+        explicit Socket(DestructionLog& log) : m_log(&log) {}
+        ~Socket() { m_log->Entries.emplace_back("Socket"); }
         DestructionLog* m_log;
     };
 
     struct PacketQueue
     {
         PacketQueue(Socket& s, DestructionLog& log) : socket(&s), m_log(&log) {}
-        ~PacketQueue() { m_log->Entries.push_back("PacketQueue"); }
+        ~PacketQueue() { m_log->Entries.emplace_back("PacketQueue"); }
         Socket* socket;
         DestructionLog* m_log;
     };
@@ -182,7 +193,7 @@ namespace Lifecycle
     struct NetworkPeer
     {
         NetworkPeer(PacketQueue& q, DestructionLog& log) : queue(&q), m_log(&log) {}
-        ~NetworkPeer() { m_log->Entries.push_back("NetworkPeer"); }
+        ~NetworkPeer() { m_log->Entries.emplace_back("NetworkPeer"); }
         PacketQueue* queue;
         DestructionLog* m_log;
     };
@@ -190,22 +201,22 @@ namespace Lifecycle
     // Diamond + shared deps (6 types)
     struct ShaderCompiler
     {
-        ShaderCompiler(DestructionLog& log) : m_log(&log) {}
-        ~ShaderCompiler() { m_log->Entries.push_back("ShaderCompiler"); }
+        explicit ShaderCompiler(DestructionLog& log) : m_log(&log) {}
+        ~ShaderCompiler() { m_log->Entries.emplace_back("ShaderCompiler"); }
         DestructionLog* m_log;
     };
 
     struct TextureAtlas
     {
-        TextureAtlas(DestructionLog& log) : m_log(&log) {}
-        ~TextureAtlas() { m_log->Entries.push_back("TextureAtlas"); }
+        explicit TextureAtlas(DestructionLog& log) : m_log(&log) {}
+        ~TextureAtlas() { m_log->Entries.emplace_back("TextureAtlas"); }
         DestructionLog* m_log;
     };
 
     struct MeshRenderer
     {
         MeshRenderer(ShaderCompiler& s, DestructionLog& log) : shader(&s), m_log(&log) {}
-        ~MeshRenderer() { m_log->Entries.push_back("MeshRenderer"); }
+        ~MeshRenderer() { m_log->Entries.emplace_back("MeshRenderer"); }
         ShaderCompiler* shader;
         DestructionLog* m_log;
     };
@@ -213,7 +224,7 @@ namespace Lifecycle
     struct ParticleEmitter
     {
         ParticleEmitter(ShaderCompiler& s, DestructionLog& log) : shader(&s), m_log(&log) {}
-        ~ParticleEmitter() { m_log->Entries.push_back("ParticleEmitter"); }
+        ~ParticleEmitter() { m_log->Entries.emplace_back("ParticleEmitter"); }
         ShaderCompiler* shader;
         DestructionLog* m_log;
     };
@@ -222,7 +233,7 @@ namespace Lifecycle
     {
         SceneRenderer(MeshRenderer& m, ParticleEmitter& p, DestructionLog& log)
             : mesh(&m), particles(&p), m_log(&log) {}
-        ~SceneRenderer() { m_log->Entries.push_back("SceneRenderer"); }
+        ~SceneRenderer() { m_log->Entries.emplace_back("SceneRenderer"); }
         MeshRenderer* mesh; ParticleEmitter* particles;
         DestructionLog* m_log;
     };
@@ -231,7 +242,7 @@ namespace Lifecycle
     {
         DebugRenderer(MeshRenderer& m, TextureAtlas& t, DestructionLog& log)
             : mesh(&m), textures(&t), m_log(&log) {}
-        ~DebugRenderer() { m_log->Entries.push_back("DebugRenderer"); }
+        ~DebugRenderer() { m_log->Entries.emplace_back("DebugRenderer"); }
         MeshRenderer* mesh; TextureAtlas* textures;
         DestructionLog* m_log;
     };
@@ -633,36 +644,28 @@ void TestDestructionOrderMultipleChains()
 
     const auto& log = root.Require<Lifecycle::DestructionLog>();
 
-    // Helper: find position of a type in the destruction log
-    auto pos = [&](const std::string& name) -> int
-    {
-        for (int i = 0; i < static_cast<int>(log.Entries.size()); ++i)
-            if (log.Entries[i] == name) return i;
-        return -1;
-    };
-
     // All 15 types destroyed (5 chains x 3 levels)
     ASSERT(log.Entries.size() == 15);
 
     // Audio chain: SoundMixer -> SoundSource -> SoundBuffer
-    ASSERT(pos("SoundMixer")  < pos("SoundSource"));
-    ASSERT(pos("SoundSource") < pos("SoundBuffer"));
+    ASSERT(log.IndexOf("SoundMixer")  < log.IndexOf("SoundSource"));
+    ASSERT(log.IndexOf("SoundSource") < log.IndexOf("SoundBuffer"));
 
     // Input chain: InputProcessor -> InputMapper -> InputDevice
-    ASSERT(pos("InputProcessor") < pos("InputMapper"));
-    ASSERT(pos("InputMapper")    < pos("InputDevice"));
+    ASSERT(log.IndexOf("InputProcessor") < log.IndexOf("InputMapper"));
+    ASSERT(log.IndexOf("InputMapper")    < log.IndexOf("InputDevice"));
 
     // Animation chain: Animator -> AnimationClip -> Skeleton
-    ASSERT(pos("Animator")      < pos("AnimationClip"));
-    ASSERT(pos("AnimationClip") < pos("Skeleton"));
+    ASSERT(log.IndexOf("Animator")      < log.IndexOf("AnimationClip"));
+    ASSERT(log.IndexOf("AnimationClip") < log.IndexOf("Skeleton"));
 
     // Physics chain: PhysicsSolver -> RigidBody -> Collider
-    ASSERT(pos("PhysicsSolver") < pos("RigidBody"));
-    ASSERT(pos("RigidBody")     < pos("Collider"));
+    ASSERT(log.IndexOf("PhysicsSolver") < log.IndexOf("RigidBody"));
+    ASSERT(log.IndexOf("RigidBody")     < log.IndexOf("Collider"));
 
     // Network chain: NetworkPeer -> PacketQueue -> Socket
-    ASSERT(pos("NetworkPeer") < pos("PacketQueue"));
-    ASSERT(pos("PacketQueue") < pos("Socket"));
+    ASSERT(log.IndexOf("NetworkPeer") < log.IndexOf("PacketQueue"));
+    ASSERT(log.IndexOf("PacketQueue") < log.IndexOf("Socket"));
 }
 REGISTER_TEST(TestDestructionOrderMultipleChains);
 
@@ -679,28 +682,20 @@ void TestDestructionOrderComplex()
 
     const auto& log = root.Require<Lifecycle::DestructionLog>();
 
-    // Helper: find position of a type in the destruction log
-    auto pos = [&](const std::string& name) -> int
-    {
-        for (int i = 0; i < static_cast<int>(log.Entries.size()); ++i)
-            if (log.Entries[i] == name) return i;
-        return -1;
-    };
-
     // All 6 types must be destroyed
     ASSERT(log.Entries.size() == 6);
 
     // SceneRenderer must be destroyed before its deps
-    ASSERT(pos("SceneRenderer") < pos("MeshRenderer"));
-    ASSERT(pos("SceneRenderer") < pos("ParticleEmitter"));
+    ASSERT(log.IndexOf("SceneRenderer") < log.IndexOf("MeshRenderer"));
+    ASSERT(log.IndexOf("SceneRenderer") < log.IndexOf("ParticleEmitter"));
 
     // DebugRenderer must be destroyed before its deps
-    ASSERT(pos("DebugRenderer") < pos("MeshRenderer"));
-    ASSERT(pos("DebugRenderer") < pos("TextureAtlas"));
+    ASSERT(log.IndexOf("DebugRenderer") < log.IndexOf("MeshRenderer"));
+    ASSERT(log.IndexOf("DebugRenderer") < log.IndexOf("TextureAtlas"));
 
     // MeshRenderer and ParticleEmitter must be destroyed before ShaderCompiler
-    ASSERT(pos("MeshRenderer") < pos("ShaderCompiler"));
-    ASSERT(pos("ParticleEmitter") < pos("ShaderCompiler"));
+    ASSERT(log.IndexOf("MeshRenderer") < log.IndexOf("ShaderCompiler"));
+    ASSERT(log.IndexOf("ParticleEmitter") < log.IndexOf("ShaderCompiler"));
 }
 REGISTER_TEST(TestDestructionOrderComplex);
 
@@ -792,7 +787,7 @@ void TestComplexDependencyTree()
 }
 REGISTER_TEST(TestComplexDependencyTree);
 
-int main(int argc, char* argv[])
+int main(const int argc, char* argv[])
 {
     if (argc == 2 && std::string(argv[1]) == "--list")
     {
