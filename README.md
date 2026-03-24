@@ -233,15 +233,15 @@ The following benchmarks run using Github Action runners.
 
 | Benchmark | Result |
 |-----------|-------:|
-| Provide | 193.5 ns/op |
-| Require (first) | 301.8 ns/op |
-| Require (cached) | 26.6 ns/op |
-| Require (auto-wire) | 1142.6 ns/op |
-| Require (interface) | 480.2 ns/op |
-| Require (pointer, miss) | 15.2 ns/op |
-| Instantiate | 57.8 ns/op |
-| CreateScope | 392.6 ns/op |
-| Capture | 448.4 ns/op |
+| Provide | 195.3 ns/op |
+| Require (first) | 308.7 ns/op |
+| Require (cached) | 27.5 ns/op |
+| Require (auto-wire) | 1710.7 ns/op |
+| Require (interface) | 539.6 ns/op |
+| Require (pointer, miss) | 16.2 ns/op |
+| Instantiate | 59.0 ns/op |
+| CreateScope | 432.1 ns/op |
+| Capture | 461.3 ns/op |
 
 **GCC** (`ubuntu-latest`)
 
@@ -249,15 +249,15 @@ The following benchmarks run using Github Action runners.
 
 | Benchmark | Result |
 |-----------|-------:|
-| Provide | 787.9 ns/op |
-| Require (first) | 1387.3 ns/op |
-| Require (cached) | 123.2 ns/op |
-| Require (auto-wire) | 5075.8 ns/op |
-| Require (interface) | 1523.7 ns/op |
-| Require (pointer, miss) | 41.2 ns/op |
-| Instantiate | 218.7 ns/op |
-| CreateScope | 2086.3 ns/op |
-| Capture | 2581.3 ns/op |
+| Provide | 747.8 ns/op |
+| Require (first) | 1317.1 ns/op |
+| Require (cached) | 120.3 ns/op |
+| Require (auto-wire) | 5041.5 ns/op |
+| Require (interface) | 1462.7 ns/op |
+| Require (pointer, miss) | 41.0 ns/op |
+| Instantiate | 218.1 ns/op |
+| CreateScope | 2092.5 ns/op |
+| Capture | 2639.6 ns/op |
 
 **Clang** (`macos-latest`)
 
@@ -265,17 +265,17 @@ The following benchmarks run using Github Action runners.
 
 | Benchmark | Result |
 |-----------|-------:|
-| Provide | 872.6 ns/op |
-| Require (first) | 1268.5 ns/op |
-| Require (cached) | 105.2 ns/op |
-| Require (auto-wire) | 4644.7 ns/op |
-| Require (interface) | 1460.2 ns/op |
-| Require (pointer, miss) | 54.6 ns/op |
-| Instantiate | 161.7 ns/op |
-| CreateScope | 2178.1 ns/op |
-| Capture | 2671.1 ns/op |
+| Provide | 931.7 ns/op |
+| Require (first) | 1379.9 ns/op |
+| Require (cached) | 112.8 ns/op |
+| Require (auto-wire) | 4713.8 ns/op |
+| Require (interface) | 1501.4 ns/op |
+| Require (pointer, miss) | 54.1 ns/op |
+| Instantiate | 166.4 ns/op |
+| CreateScope | 2246.3 ns/op |
+| Capture | 2710.7 ns/op |
 
-*Commit: [`238f2c9`](https://github.com/SirusDoma/Genode.IoC/commit/238f2c99bea87fbecd6fa7aabc1778f4b2d40793)*
+*Commit: [`bd0c368`](https://github.com/SirusDoma/Genode.IoC/commit/bd0c368e2c0e2d78612cfbd666faaea1e38a23cd)*
 
 <!-- BENCHMARK_END -->
 
