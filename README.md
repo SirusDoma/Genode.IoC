@@ -280,4 +280,4 @@ The following benchmarks run using Github Action runners.
 <!-- BENCHMARK_END -->
 
 ## License ##
-This is an open-sourced library licensed under the [MIT license](LICENSE).
+This open-source software is licensed under the [zlib/libpng](LICENSE) license.
