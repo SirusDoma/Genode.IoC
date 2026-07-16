@@ -787,6 +787,154 @@ void TestComplexDependencyTree()
 }
 REGISTER_TEST(TestComplexDependencyTree);
 
+void TestLocalProvidedAfterScopeCreation()
+{
+    auto root  = Gx::Context();
+    auto scope = root.CreateScope();
+
+    // Provide AFTER the scope was created
+    root.Provide<InputSystem>(Gx::Scope::Local);
+
+    const auto& fromScope = scope.Require<InputSystem>();
+    const auto& fromRoot  = root.Require<InputSystem>();
+
+    // Local registrations must stay per-scope regardless of registration order
+    ASSERT(&fromScope != &fromRoot);
+
+    // The scope bootstraps its own registration, which behaves like any local registration within the scope
+    const auto& again = scope.Require<InputSystem>();
+    ASSERT(&fromScope == &again);
+    ASSERT(&fromRoot  != &again);
+}
+REGISTER_TEST(TestLocalProvidedAfterScopeCreation);
+
+void TestSingletonProvidedAfterScopeCreation()
+{
+    auto root  = Gx::Context();
+    auto scope = root.CreateScope();
+
+    // Provide AFTER the scope was created
+    root.Provide<InputSystem>(Gx::Scope::Singleton);
+
+    // Resolve through the scope first, then through the root
+    const auto& fromScope = scope.Require<InputSystem>();
+    const auto& fromRoot  = root.Require<InputSystem>();
+
+    // Singleton registrations must be shared regardless of registration order
+    ASSERT(&fromScope == &fromRoot);
+}
+REGISTER_TEST(TestSingletonProvidedAfterScopeCreation);
+
+void TestScopeIsolationIsOrderIndependent()
+{
+    auto root   = Gx::Context();
+    auto scope1 = root.CreateScope();
+
+    root.Provide<InputSystem>(Gx::Scope::Local);
+
+    auto scope2 = root.CreateScope();
+
+    const auto& fromRoot   = root.Require<InputSystem>();
+    const auto& fromScope1 = scope1.Require<InputSystem>();
+    const auto& fromScope2 = scope2.Require<InputSystem>();
+
+    // Scopes created before and after the registration behave the same
+    ASSERT(&fromScope1 != &fromRoot);
+    ASSERT(&fromScope2 != &fromRoot);
+    ASSERT(&fromScope1 != &fromScope2);
+}
+REGISTER_TEST(TestScopeIsolationIsOrderIndependent);
+
+void TestParentBootstrapDoesNotLeakIntoScope()
+{
+    auto root  = Gx::Context();
+    auto scope = root.CreateScope();
+
+    // Auto-register in the root by resolving an unregistered type
+    const auto& fromRoot  = root.Require<PhysicsSystem>();
+    const auto& fromScope = scope.Require<PhysicsSystem>();
+
+    // The root's auto-registered local instance must not leak into the scope
+    ASSERT(&fromRoot != &fromScope);
+}
+REGISTER_TEST(TestParentBootstrapDoesNotLeakIntoScope);
+
+void TestPointerRequireIgnoresParentLocal()
+{
+    auto root  = Gx::Context();
+    auto scope = root.CreateScope();
+
+    root.Provide<InputSystem>(Gx::Scope::Local);
+    root.Provide<PhysicsSystem>(Gx::Scope::Singleton);
+
+    // A local registration made after the scope was created is not visible to the scope
+    ASSERT(scope.Require<InputSystem*>() == nullptr);
+    ASSERT(root.Require<InputSystem*>() != nullptr);
+
+    // A singleton registration is visible through the parent chain
+    const auto* fromScope = scope.Require<PhysicsSystem*>();
+    const auto* fromRoot  = root.Require<PhysicsSystem*>();
+    ASSERT(fromScope != nullptr);
+    ASSERT(fromScope == fromRoot);
+
+    // Types that are not registered anywhere still resolve to nullptr
+    ASSERT(scope.Require<AudioSystem*>() == nullptr);
+}
+REGISTER_TEST(TestPointerRequireIgnoresParentLocal);
+
+void TestScopeIgnoresLateInterfaceBinding()
+{
+    auto root  = Gx::Context();
+    auto scope = root.CreateScope();
+
+    // A local interface binding made after the scope was created is not part of the scope snapshot
+    root.Provide<IRenderer, OpenGLRenderer>(Gx::Scope::Local);
+
+    // The root resolves it normally
+    ASSERT(root.Require<IRenderer>().Name() == "OpenGL");
+
+    // The scope cannot see the registration, and the interface is not constructible on its own
+    bool thrown = false;
+    try
+    {
+        scope.Require<IRenderer>();
+    }
+    catch (const std::runtime_error&)
+    {
+        thrown = true;
+    }
+
+    ASSERT(thrown);
+}
+REGISTER_TEST(TestScopeIgnoresLateInterfaceBinding);
+
+void TestInstantiateUsesParentRegistration()
+{
+    auto root  = Gx::Context();
+    auto scope = root.CreateScope();
+
+    int builds = 0;
+    root.Provide<AudioSystem>(
+        std::function<std::unique_ptr<AudioSystem>(Gx::Context&)>(
+            [&builds](Gx::Context&) {
+                ++builds;
+                return std::make_unique<AudioSystem>(48000, 6);
+            }
+        ),
+        Gx::Scope::Singleton
+    );
+
+    // Instantiate through the scope uses the singleton recipe registered on the parent
+    // Note: a late Local registration would not be visible to the scope, like everywhere else
+    const auto instance = scope.Instantiate<AudioSystem>();
+    ASSERT(instance != nullptr);
+    ASSERT(instance->SampleRate == 48000);
+
+    // Exactly one construction: no parent instance is built as a side effect
+    ASSERT(builds == 1);
+}
+REGISTER_TEST(TestInstantiateUsesParentRegistration);
+
 int main(const int argc, char* argv[])
 {
     if (argc == 2 && std::string(argv[1]) == "--list")

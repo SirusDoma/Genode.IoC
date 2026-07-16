@@ -43,12 +43,12 @@ context.Provide<MovementSystem>();
 context.Provide<InputSystem>();
 ```
 
-> [!Tip]
+> [!TIP]
 > Types can be registered in any order.
 >
 > Objects are lazily created on the first call to `Require<T>()`, and the container resolves dependencies automatically.
 
-> [!Important]
+> [!IMPORTANT]
 > The type must have at least one public constructor.
 > The container selects the constructor with the fewest parameters.
 >
@@ -87,7 +87,7 @@ context.Provide<IInputSystem, InputSystem>();
 context.Provide<MovementSystem>(); // Optional: auto-wired on Require
 ```
 
-> [!Important]
+> [!IMPORTANT]
 > A runtime error is thrown if you resolve a type that depends on an unregistered interface.
 > Abstract or interface types cannot be registered with the plain `Provide<T>()` overload; this will produce a compile-time error.
 
@@ -173,6 +173,33 @@ assert(&a == &b); // Same instance within the same scope
 }
 ```
 
+### Scopes and late registration ###
+
+`CreateScope()` takes a snapshot of the parent registrations: singleton entries are shared with the scope, while local entries are copied as fresh registrations with no instance attached.
+Instances are never carried over; a local instance always belongs to the context that created it, including when a scope creates another scope of its own.
+
+Registrations made on the parent after a scope was created are not part of the snapshot:
+
+- A singleton registered later is still resolvable from existing scopes and shared with the parent, since only one instance can ever exist.
+- A local registered later is not visible to existing scopes. Resolving the type in such a scope auto-registers the scope's own local registration instead, and the parent instance is never shared.
+  This also means a late local registration with a custom builder or an interface binding is not reflected to previously created scopes.
+
+```cpp
+auto context = Gx::Context();
+auto scope   = context.CreateScope();
+
+// Registered after the scope was created
+context.Provide<FooBar>();
+
+auto& a = context.Require<FooBar>();
+auto& b = scope.Require<FooBar>(); // Auto-registered within the scope, never shared with the parent
+assert(&a != &b);
+```
+
+> [!NOTE]
+> Registration is intended to happen once, up front, before the scopes that use it are created.
+> Late registration is supported, but the snapshot rule above applies: register your dependencies first, then create scopes.
+
 ### Capture ###
 
 Use `Capture()` to create a standalone snapshot of a context.
@@ -204,7 +231,7 @@ cmake --build build --config Release
 ctest --test-dir build --output-on-failure -C Release
 ```
 
-> [!Tip]
+> [!TIP]
 > On single-config generators (GCC, Clang), the `-C Release` flag can be omitted.
 
 To run the benchmarks:
@@ -218,7 +245,7 @@ cmake --build build --config Release --target benchmarks
 
 ## Benchmarks ##
 
-> [!Note]
+> [!NOTE]
 > These benchmarks use a simple `std::chrono`-based harness without optimizer fences or statistical analysis.
 > Results may vary due to CPU throttling, OS scheduling, and compiler optimizations.
 >

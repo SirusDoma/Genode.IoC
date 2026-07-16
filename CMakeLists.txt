@@ -33,6 +33,13 @@ set(TEST_NAMES
     TestDestructionOrderComplex
     TestDestructionOrderSingleton
     TestComplexDependencyTree
+    TestLocalProvidedAfterScopeCreation
+    TestSingletonProvidedAfterScopeCreation
+    TestScopeIsolationIsOrderIndependent
+    TestParentBootstrapDoesNotLeakIntoScope
+    TestPointerRequireIgnoresParentLocal
+    TestScopeIgnoresLateInterfaceBinding
+    TestInstantiateUsesParentRegistration
 )
 
 foreach(name IN LISTS TEST_NAMES)
