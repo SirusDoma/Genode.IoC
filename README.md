@@ -256,35 +256,35 @@ The following benchmarks run using Github Action runners.
 <!-- BENCHMARK_START -->
 **MSVC** (`windows-latest`)
 
-> CPU: AMD EPYC 7763 64-Core Processor                 (2 cores, 4 threads) | Memory: 15 GB
+> CPU: Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz (2 cores, 4 threads) | Memory: 15 GB
 
 | Benchmark | Result |
 |-----------|-------:|
-| Provide | 195.3 ns/op |
-| Require (first) | 308.7 ns/op |
-| Require (cached) | 27.5 ns/op |
-| Require (auto-wire) | 1710.7 ns/op |
-| Require (interface) | 539.6 ns/op |
-| Require (pointer, miss) | 16.2 ns/op |
-| Instantiate | 59.0 ns/op |
-| CreateScope | 432.1 ns/op |
-| Capture | 461.3 ns/op |
+| Provide | 198.8 ns/op |
+| Require (first) | 308.6 ns/op |
+| Require (cached) | 14.1 ns/op |
+| Require (auto-wire) | 1594.6 ns/op |
+| Require (interface) | 653.9 ns/op |
+| Require (pointer, miss) | 12.2 ns/op |
+| Instantiate | 56.7 ns/op |
+| CreateScope | 420.1 ns/op |
+| Capture | 490.1 ns/op |
 
 **GCC** (`ubuntu-latest`)
 
-> CPU: AMD EPYC 7763 64-Core Processor (4 cores, 4 threads) | Memory: 15 GB
+> CPU: AMD EPYC 9V74 80-Core Processor (4 cores, 4 threads) | Memory: 15 GB
 
 | Benchmark | Result |
 |-----------|-------:|
-| Provide | 747.8 ns/op |
-| Require (first) | 1317.1 ns/op |
-| Require (cached) | 120.3 ns/op |
-| Require (auto-wire) | 5041.5 ns/op |
-| Require (interface) | 1462.7 ns/op |
-| Require (pointer, miss) | 41.0 ns/op |
-| Instantiate | 218.1 ns/op |
-| CreateScope | 2092.5 ns/op |
-| Capture | 2639.6 ns/op |
+| Provide | 659.6 ns/op |
+| Require (first) | 1104.8 ns/op |
+| Require (cached) | 105.6 ns/op |
+| Require (auto-wire) | 3904.0 ns/op |
+| Require (interface) | 1197.2 ns/op |
+| Require (pointer, miss) | 35.1 ns/op |
+| Instantiate | 180.8 ns/op |
+| CreateScope | 1718.6 ns/op |
+| Capture | 2092.2 ns/op |
 
 **Clang** (`macos-latest`)
 
@@ -292,17 +292,17 @@ The following benchmarks run using Github Action runners.
 
 | Benchmark | Result |
 |-----------|-------:|
-| Provide | 931.7 ns/op |
-| Require (first) | 1379.9 ns/op |
-| Require (cached) | 112.8 ns/op |
-| Require (auto-wire) | 4713.8 ns/op |
-| Require (interface) | 1501.4 ns/op |
-| Require (pointer, miss) | 54.1 ns/op |
-| Instantiate | 166.4 ns/op |
-| CreateScope | 2246.3 ns/op |
-| Capture | 2710.7 ns/op |
+| Provide | 683.5 ns/op |
+| Require (first) | 840.5 ns/op |
+| Require (cached) | 89.8 ns/op |
+| Require (auto-wire) | 3814.4 ns/op |
+| Require (interface) | 794.9 ns/op |
+| Require (pointer, miss) | 21.7 ns/op |
+| Instantiate | 122.3 ns/op |
+| CreateScope | 1560.2 ns/op |
+| Capture | 2198.2 ns/op |
 
-*Commit: [`bd0c368`](https://github.com/SirusDoma/Genode.IoC/commit/bd0c368e2c0e2d78612cfbd666faaea1e38a23cd)*
+*Commit: [`7653f09`](https://github.com/SirusDoma/Genode.IoC/commit/7653f098868bc6ff27cb096b2c155203308caa9f)*
 
 <!-- BENCHMARK_END -->
 
